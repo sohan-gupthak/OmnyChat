@@ -1,0 +1,155 @@
+.contact-requests-container {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: #666;
+  position: relative;
+}
+
+.tab.active {
+  color: #4a6fa5;
+  border-bottom: 2px solid #4a6fa5;
+}
+
+.tab .badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: #e74c3c;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.requests-content {
+  min-height: 200px;
+}
+
+.request-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.request-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.request-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.username {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.email {
+  font-size: 14px;
+  color: #666;
+  margin: 5px 0;
+}
+
+.date {
+  font-size: 12px;
+  color: #999;
+}
+
+.status {
+  font-size: 14px;
+  margin-top: 5px;
+  text-transform: capitalize;
+}
+
+.status.pending {
+  color: #f39c12;
+}
+
+.status.accepted {
+  color: #27ae60;
+}
+
+.status.rejected {
+  color: #e74c3c;
+}
+
+.request-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.accept-btn, .reject-btn, .cancel-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.accept-btn {
+  background-color: #27ae60;
+  color: white;
+}
+
+.accept-btn:hover {
+  background-color: #219653;
+}
+
+.reject-btn, .cancel-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.reject-btn:hover, .cancel-btn:hover {
+  background-color: #c0392b;
+}
+
+.no-requests {
+  text-align: center;
+  color: #999;
+  padding: 30px 0;
+}
+
+.error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #666;
+}

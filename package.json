@@ -1,5 +1,5 @@
 {
-	"name": "vite-react-template",
+	"name": "omnychat",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
@@ -12,14 +12,19 @@
 		"pre-commit": "lint-staged"
 	},
 	"dependencies": {
+		"@fortawesome/fontawesome-free": "^6.5.1",
 		"@reduxjs/toolkit": "^2.6.1",
 		"@typescript-eslint/eslint-plugin": "^8.0.1",
 		"axios": "^1.7.9",
+		"date-fns": "^3.0.6",
 		"prettier": "^3.5.3",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
 		"react-redux": "^9.2.0",
-		"react-router-dom": "^6.29.0"
+		"react-router-dom": "^6.29.0",
+		"socket.io-client": "^4.7.2",
+		"tweetnacl": "^1.0.3",
+		"tweetnacl-util": "^0.15.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.8.0",

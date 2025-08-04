@@ -3,8 +3,8 @@
 ### Installation
 
 ```bash
-nvm install v18.20.4
-nvm use v18.20.4
+nvm install v20.18.1
+nvm use v20.18.1
 npm install
 ```
 
@@ -21,4 +21,5 @@ npm run dev
 ```
 
 ### License
+
 This project is licensed under the [MIT License](./LICENSE)
