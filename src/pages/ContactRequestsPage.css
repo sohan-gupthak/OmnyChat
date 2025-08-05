@@ -19,7 +19,7 @@
 .back-button {
   background: none;
   border: none;
-  color: #4a7bff;
+  color: var(--color-primary);
   cursor: pointer;
   font-size: 16px;
   padding: 8px 16px;
@@ -27,12 +27,9 @@
   margin-right: 20px;
   display: flex;
   align-items: center;
+  outline: none !important;
   gap: 8px;
   transition: background-color 0.2s;
-}
-
-.back-button:hover {
-  background-color: rgba(74, 123, 255, 0.1);
 }
 
 .page-content {

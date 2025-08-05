@@ -95,11 +95,14 @@ const ChatWindow: React.FC = () => {
   
   if (!selectedContact) {
     return (
-      <div className="chat-window empty-state">
-        <div className="empty-state-content">
-          <i className="fas fa-comments empty-icon"></i>
+      <div className="chat-window empty-state container-neobrutalism">
+        <div className="empty-state-content card-neobrutalism">
+          <i className="fas fa-comments empty-icon" style={{ fontSize: '3rem', marginBottom: '1rem' }}></i>
           <h3>Select a contact to start chatting</h3>
-          <p>Your messages will be end-to-end encrypted</p>
+          <p className="badge-neobrutalism" style={{ marginTop: '1rem' }}>
+            <i className="fas fa-lock mr-2"></i>
+            Your messages will be end-to-end encrypted
+          </p>
         </div>
       </div>
     );
@@ -109,13 +112,13 @@ const ChatWindow: React.FC = () => {
     <div className="chat-window">
       <div className="chat-header">
         <div className="contact-info">
-          <div className="contact-avatar">
+          <div className="contact-avatar avatar-neobrutalism">
             {selectedContact.username.charAt(0).toUpperCase()}
-            <span className={`status-indicator ${selectedContact.isOnline ? 'online' : 'offline'}`}></span>
+            <span className={`status-indicator ${selectedContact.isOnline ? 'status-online' : 'status-offline'}`}></span>
           </div>
           <div>
-            <div className="contact-name">{selectedContact.username}</div>
-            <div className="contact-status">
+            <div className="contact-name" style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{selectedContact.username}</div>
+            <div className="contact-status" style={{ display: 'inline-block', marginTop: '0.25rem' }}>
               {selectedContact.isOnline ? 'Online' : `Last seen: ${selectedContact.lastSeen ? new Date(selectedContact.lastSeen).toLocaleString() : 'Unknown'}`}
             </div>
           </div>
@@ -124,7 +127,7 @@ const ChatWindow: React.FC = () => {
         <div className="chat-actions">
           <EncryptionStatus />
           <button 
-            className="icon-button" 
+            className="btn-neobrutalism" 
             title="Verify Keys"
             onClick={() => {
               // Ensure we have the contact's key before showing verification
@@ -142,7 +145,7 @@ const ChatWindow: React.FC = () => {
         </div>
       </div>
       
-      <div className="messages-container">
+      <div className="messages-container" style={{ background: 'var(--color-background)', padding: '1rem' }}>
         <MessageList 
           messages={messages} 
           currentUserId={currentUserId} 

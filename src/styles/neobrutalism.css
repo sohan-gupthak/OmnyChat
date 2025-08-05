@@ -1,0 +1,274 @@
+/* Neobrutalism Design System for OmnyChat */
+
+:root {
+  --background: oklch(96.47% 0.0401 157.79);
+  --secondary-background: oklch(100% 0 0);
+  --foreground: oklch(0% 0 0);
+  --main-foreground: oklch(0% 0 0);
+  --main: oklch(79.76% 0.2044 153.08);
+  --border: oklch(0% 0 0);
+  --ring: oklch(0% 0 0);
+  --overlay: oklch(0% 0 0 / 0.8);
+  --shadow: 4px 4px 0px 0px var(--border);
+  --chart-1: #00D696;
+  --chart-2: #FF7A05;
+  --chart-3: #0099FF;
+  --chart-4: #FFBF00;
+  --chart-5: #7A83FF;
+  --chart-active-dot: #000;
+}
+
+.dark {
+  --background: oklch(22.45% 0.0316 158.41);
+  --secondary-background: oklch(23.93% 0 0);
+  --foreground: oklch(92.49% 0 0);
+  --main-foreground: oklch(0% 0 0);
+  --main: oklch(73.03% 0.1865 153.23);
+  --border: oklch(0% 0 0);
+  --ring: oklch(100% 0 0);
+  --shadow: 4px 4px 0px 0px var(--border);
+  --chart-1: #00BD84;
+  --chart-2: #EB6D00;
+  --chart-3: #008AE5;
+  --chart-4: #E5AC00;
+  --chart-5: #7A83FF;
+  --chart-active-dot: #fff;
+}
+
+/* Theme variables */
+:root {
+  /* Colors */
+  --color-primary: oklch(0.8 0.2 160); /* Bright green */
+  --color-primary-light: oklch(0.85 0.15 160);
+  --color-secondary: oklch(0.8 0.2 60); /* Orange */
+  --color-accent: oklch(0.8 0.2 330); /* Pink */
+  --color-background: oklch(0.98 0.005 0); /* Near white */
+  --color-background-alt: oklch(0.95 0.01 0); /* Light gray */
+  --color-text: oklch(0.2 0.01 0); /* Near black */
+  --color-text-muted: oklch(0.5 0.01 0); /* Medium gray */
+  --color-border: oklch(0.1 0.01 0); /* Dark gray/black */
+  --color-success: oklch(0.8 0.2 140); /* Green */
+  --color-error: oklch(0.8 0.2 30); /* Red */
+  --color-warning: oklch(0.8 0.2 80); /* Yellow/Orange */
+  --color-info: oklch(0.8 0.2 250); /* Blue */
+  
+  /* For compatibility with existing code */
+  --color-main: var(--color-primary);
+  --color-main-foreground: var(--color-background);
+  --color-foreground: var(--color-text);
+  --color-secondary-background: var(--color-background-alt);
+  --color-muted: var(--color-text-muted);
+  
+  /* Shadows */
+  --shadow-neobrutalism: 4px 4px 0px var(--color-border);
+  --shadow-neobrutalism-sm: 2px 2px 0px var(--color-border);
+  --shadow-shadow: var(--shadow-neobrutalism); /* For compatibility */
+  
+  /* Border radius */
+  --radius-base: 4px;
+  
+  /* Font weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  
+  /* Animation */
+  --transition-base: all 0.2s ease-in-out;
+}
+
+/* Base styles */
+body {
+  color: var(--color-foreground);
+  font-weight: var(--font-weight-normal);
+  background-color: var(--color-background);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-weight-heading);
+}
+
+/* Neobrutalism Component Styles */
+
+/* Button Styles */
+.btn-neobrutalism {
+  background-color: var(--color-main);
+  color: var(--color-main-foreground);
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-shadow);
+  outline: none !important;
+  transition: box-shadow 0.2s;
+}
+
+.btn-neobrutalism:hover {
+  box-shadow: 6px 6px 0px var(--color-border);
+}
+
+.btn-neobrutalism:active {
+  box-shadow: 2px 2px 0px var(--color-border);
+}
+
+/* Input Styles */
+.input-neobrutalism {
+  background-color: var(--color-secondary-background);
+  color: var(--color-foreground);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-base);
+  padding: 0.5rem 1rem;
+  box-shadow: var(--shadow-shadow);
+  transition: box-shadow 0.2s;
+}
+
+.input-neobrutalism:focus {
+  outline: none;
+  border-color: var(--color-main);
+  box-shadow: 0 0 0 2px var(--color-main);
+}
+
+/* Card Styles */
+.card-neobrutalism {
+  background-color: var(--color-secondary-background);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-base);
+  padding: 1rem;
+  transition: box-shadow 0.2s;
+}
+
+/* No hover effect for cards */
+
+/* Container Styles */
+.container-neobrutalism {
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-base);
+  background-color: var(--color-background);
+  padding: 1rem;
+}
+
+/* Header Styles */
+.header-neobrutalism {
+  background-color: var(--color-background-alt);
+  border-bottom: 3px solid var(--color-border);
+  padding: 1rem;
+  position: relative;
+  z-index: 10;
+}
+
+.header-neobrutalism .header-avatar {
+  border: 3px solid var(--color-border);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-neobrutalism);
+  width: 40px;
+  height: 40px;
+  margin-right: 10px;
+}
+
+/* Sidebar Styles */
+.sidebar-neobrutalism {
+  background-color: var(--color-secondary-background);
+  border-right: 3px solid var(--color-border);
+}
+
+/* Message Styles */
+.message-neobrutalism-sent,
+.message-neobrutalism-received {
+  margin-bottom: 1rem;
+  max-width: 70%;
+  border: 3px solid var(--color-border);
+  padding: 0.75rem;
+  border-radius: var(--radius-base);
+}
+
+.message-neobrutalism-sent {
+  margin-left: auto;
+  background-color: var(--color-main);
+  border-color: var(--color-border);
+}
+
+.message-neobrutalism-received {
+  margin-right: auto;
+  background-color: var(--color-secondary-background);
+}
+
+.message-content {
+  padding: 0.5rem;
+}
+
+/* Timestamp divider */
+.timestamp-divider {
+  text-align: center;
+  margin: 1rem 0;
+  font-size: 0.8rem;
+  color: var(--color-foreground);
+}
+
+/* Message status indicators */
+.message-status {
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+
+.message-status.read i {
+  color: var(--color-main);
+}
+
+/* Badge Styles */
+.badge-neobrutalism {
+  background-color: var(--color-chart-2);
+  color: var(--color-main-foreground);
+  border: 2px solid var(--color-border);
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* Avatar Styles */
+.avatar-neobrutalism {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: var(--color-background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  position: relative;
+  border: 3px solid var(--color-border);
+  box-shadow: var(--shadow-neobrutalism);
+}
+
+/* Status Indicator */
+.status-indicator {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  box-shadow: var(--shadow-neobrutalism-sm);
+}
+
+.status-online {
+  background-color: var(--color-success);
+}
+
+.status-offline {
+  background-color: var(--color-muted);
+}
+
+/* Animations */
+.hover-lift {
+  transition: box-shadow 0.2s;
+}
+
+.hover-lift:hover {
+  box-shadow: 6px 6px 0px var(--color-border);
+}
+
+.active-press:active {
+  box-shadow: 2px 2px 0px var(--color-border);
+}

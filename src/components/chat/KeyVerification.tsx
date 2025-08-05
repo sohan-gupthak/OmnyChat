@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '../../store';
 import { KeyService } from '../../services';
 import { markKeyAsVerified, getUserKey } from '../../store/slices/keysSlice';
-import './KeyVerification.css';
+import './KeyVerificationNeobrutalism.css';
 
 interface KeyVerificationProps {
   contactId: number;
@@ -238,53 +238,57 @@ const KeyVerification: React.FC<KeyVerificationProps> = ({ contactId, onClose })
 
   return (
     <div className="key-verification-overlay">
-      <div className="key-verification-modal">
-        <div className="modal-header">
+      <div className="key-verification-modal-neobrutalism card-neobrutalism">
+        <div className="modal-header-neobrutalism header-neobrutalism">
           <h3>Verify Security Keys</h3>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button className="btn-neobrutalism" onClick={onClose} style={{ width: '2rem', height: '2rem', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <i className="fas fa-times"></i>
+          </button>
         </div>
         
-        <div className="modal-content">
+        <div className="modal-content-neobrutalism">
           <p className="verification-intro">
             To verify that your conversation with <strong>{contact?.username}</strong> is secure,
             compare the fingerprint below with the one they see on their device.
           </p>
           
-          <div className="fingerprint-container">
+          <div className="fingerprint-container-neobrutalism">
             <h4>Key Fingerprint:</h4>
             {fingerprint ? (
-              <div className="fingerprint">{fingerprint}</div>
+              <div className="fingerprint-neobrutalism">{fingerprint}</div>
             ) : verificationError ? (
-              <div className="fingerprint-error">{verificationError}</div>
+              <div className="fingerprint-error-neobrutalism">
+                <i className="fas fa-exclamation-circle"></i> {verificationError}
+              </div>
             ) : (
-              <div className="fingerprint-loading">
+              <div className="fingerprint-loading-neobrutalism">
                 <i className="fas fa-spinner fa-spin"></i> Loading fingerprint...
               </div>
             )}
           </div>
           
-          <div className="verification-status">
+          <div className="verification-status-neobrutalism">
             {isVerified ? (
-              <div className="verified">
-                <i className="fas fa-shield-check"></i>
+              <div className="verified-neobrutalism">
+                <i className="fas fa-shield-alt"></i>
                 <span>Key verified and secure</span>
               </div>
             ) : (
-              <div className="unverified">
-                <i className="fas fa-shield-exclamation"></i>
+              <div className="unverified-neobrutalism">
+                <i className="fas fa-shield-alt"></i>
                 <span>Key not verified</span>
               </div>
             )}
           </div>
           
           {verificationError && (
-            <div className="verification-error">
+            <div className="verification-error-neobrutalism">
               <i className="fas fa-exclamation-triangle"></i>
               <span>{verificationError}</span>
             </div>
           )}
           
-          <div className="verification-instructions">
+          <div className="verification-instructions-neobrutalism">
             <h4>How to verify:</h4>
             <ol>
               <li>Ask your contact to open the key verification screen</li>
@@ -295,22 +299,22 @@ const KeyVerification: React.FC<KeyVerificationProps> = ({ contactId, onClose })
           </div>
         </div>
         
-        <div className="modal-footer">
+        <div className="modal-footer-neobrutalism">
           <button 
-            className="verify-button"
+            className="btn-neobrutalism verify"
             onClick={verifyKeySignature}
             disabled={isVerifying || !contactKey || !serverKey}
           >
             {isVerifying ? 'Verifying...' : 'Verify Server Signature'}
           </button>
           <button 
-            className="verify-button manual"
+            className="btn-neobrutalism manual"
             onClick={manuallyVerifyKey}
             disabled={isVerified || !contactKey}
           >
             {isVerified ? 'Manually Verified' : 'I Verified This Key'}
           </button>
-          <button className="close-button-text" onClick={onClose}>Close</button>
+          <button className="btn-neobrutalism close" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
