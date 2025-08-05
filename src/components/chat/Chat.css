@@ -572,6 +572,7 @@
 
 .message-input-container input {
   flex: 1;
+  width: 100%;
   padding: 12px 15px;
   border: 1px solid #ddd;
   border-radius: 24px;
@@ -584,13 +585,18 @@
   border-color: #4a7bff;
 }
 
+.message-input-wrapper {
+  width: 100%;
+}
+
 .send-button {
-  background-color: #4a7bff;
+  background-color: var(--color-main);
   color: white;
   border: none;
   border-radius: 50%;
   width: 40px;
   height: 40px;
+  margin-left: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -599,7 +605,7 @@
 }
 
 .send-button:hover {
-  background-color: #3a6ae6;
+  background-color: var(--color-main);
 }
 
 .send-button:disabled {

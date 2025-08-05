@@ -36,9 +36,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, shar
   
   if (messages.length === 0) {
     return (
-      <div className="no-messages">
-        <p>No messages yet</p>
-        <p>Send a message to start the conversation</p>
+      <div className="no-messages card-neobrutalism" style={{ padding: '2rem', textAlign: 'center' }}>
+        <i className="fas fa-comment-slash" style={{ fontSize: '2rem', marginBottom: '1rem' }}></i>
+        <p style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>No messages yet</p>
+        <p style={{ display: 'inline-block', marginTop: '1rem' }}>
+          Send a message to start the conversation
+        </p>
       </div>
     );
   }
@@ -51,26 +54,38 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, shar
           new Date(message.timestamp).getTime() - 
           new Date(messages[index - 1].timestamp).getTime() > 5 * 60 * 1000;
         
+        // No rotation for message bubbles to keep them horizontally straight
+        
         return (
           <React.Fragment key={message.id || `${message.senderId}-${message.timestamp}`}>
             {showTimestamp && (
-              <div className="timestamp-divider">
+              <div className="timestamp-divider badge-neobrutalism" 
+                   style={{ 
+                     margin: '1rem auto', 
+                     textAlign: 'center', 
+                     width: 'fit-content'
+                   }}>
                 {new Date(message.timestamp).toLocaleDateString()}
               </div>
             )}
-            <div className={`message ${isSender ? 'sent' : 'received'}`}>
+            <div className={isSender ? 'message-neobrutalism-sent' : 'message-neobrutalism-received'}>
               <div className="message-content">
                 {message.isEncrypted ? (
                   <div className="encrypted-message">
-                    <i className="fas fa-lock"></i> Encrypted message
+                    <i className="fas fa-lock mr-2"></i> Encrypted message
                   </div>
                 ) : (
                   message.content
                 )}
-                <span className="message-time">
+                <span className="message-time" style={{ 
+                  marginTop: '0.5rem', 
+                  fontSize: '0.75rem', 
+                  display: 'block',
+                  textAlign: isSender ? 'right' : 'left'
+                }}>
                   {formatTime(message.timestamp)}
                   {isSender && (
-                    <span className={`message-status ${message.status}`}>
+                    <span className={`message-status ${message.status} ml-1`}>
                       {message.status === 'sent' && <i className="fas fa-check"></i>}
                       {message.status === 'delivered' && <i className="fas fa-check-double"></i>}
                       {message.status === 'read' && <i className="fas fa-check-double read"></i>}

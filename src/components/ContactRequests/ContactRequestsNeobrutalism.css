@@ -1,0 +1,189 @@
+.contact-requests-container-neobrutalism {
+  padding: 1.5rem;
+  background-color: var(--color-background);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-base);
+  box-shadow: 6px 6px 0 var(--color-shadow);
+  width: 100%;
+  max-width: 800px;
+  margin: 2rem auto;
+}
+
+.contact-requests-container-neobrutalism h2 {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: var(--color-text);
+}
+
+.tabs-neobrutalism {
+  display: flex;
+  margin-bottom: 1.5rem;
+  border-bottom: 3px solid var(--color-border);
+  gap: 0.5rem;
+}
+
+.tab-neobrutalism {
+  padding: 0.75rem 1.25rem;
+  background-color: var(--color-background);
+  border: 3px solid var(--color-border);
+  border-bottom: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--color-text);
+  outline: none !important;
+  position: relative;
+  border-radius: var(--radius-base) var(--radius-base) 0 0;
+  margin-bottom: -3px;
+}
+
+.tab-neobrutalism.active {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-bottom-color: var(--color-primary);
+}
+
+.tab-neobrutalism .badge-neobrutalism {
+  position: absolute;
+  top: -0.5rem;
+  right: -0.5rem;
+  background-color: var(--color-error);
+  color: var(--color-text-inverse);
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.requests-content-neobrutalism {
+  min-height: 200px;
+}
+
+.request-list-neobrutalism {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.request-item-neobrutalism {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-base);
+  margin-bottom: 1rem;
+  background-color: var(--color-background);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.request-info-neobrutalism {
+  display: flex;
+  flex-direction: column;
+}
+
+.username-neobrutalism {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: var(--color-text);
+}
+
+.email-neobrutalism {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0.25rem 0;
+}
+
+.date-neobrutalism {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-weight: bold;
+}
+
+.status-neobrutalism {
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  text-transform: capitalize;
+  font-weight: bold;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-base);
+  display: inline-block;
+}
+
+.status-neobrutalism.pending {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning);
+  border: 2px solid var(--color-warning);
+}
+
+.status-neobrutalism.accepted {
+  background-color: var(--color-success-light);
+  color: var(--color-success);
+  border: 2px solid var(--color-success);
+}
+
+.status-neobrutalism.rejected {
+  background-color: var(--color-error-light);
+  color: var(--color-error);
+  border: 2px solid var(--color-error);
+}
+
+.request-actions-neobrutalism {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.no-requests-neobrutalism {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 2rem 0;
+  font-size: 1.1rem;
+  border: 3px dashed var(--color-border);
+  border-radius: var(--radius-base);
+  margin: 1rem 0;
+}
+
+.error-message-neobrutalism {
+  background-color: var(--color-error-light);
+  color: var(--color-error);
+  padding: 1rem;
+  border: 3px solid var(--color-error);
+  border-radius: var(--radius-base);
+  margin-bottom: 1rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.loading-neobrutalism {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.avatar-neobrutalism {
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  box-shadow: 3px 3px 0 var(--color-shadow);
+}

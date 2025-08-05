@@ -41,28 +41,35 @@ const MessageInput: React.FC<MessageInputProps> = ({ recipientId, sharedKey }) =
   
   return (
     <div className="message-input-container">
-      <input
-        type="text"
-        placeholder="Type a message..."
-        value={messageInput}
-        onChange={(e) => setMessageInput(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-        disabled={isEncrypting}
-      />
-      <button 
-        className="send-button"
-        onClick={handleSendMessage}
-        disabled={isEncrypting || !messageInput.trim()}
-      >
-        {isEncrypting ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-paper-plane"></i>}
-      </button>
+      <div className="message-input-wrapper flex items-center">
+        <input
+          type="text"
+          className="input-neobrutalism"
+          placeholder="Type a message..."
+          value={messageInput}
+          onChange={(e) => setMessageInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+          disabled={isEncrypting}
+        />
+        <button 
+          className="btn-neobrutalism send-button"
+          onClick={handleSendMessage}
+          disabled={isEncrypting || !messageInput.trim()}
+          style={{ transform: isEncrypting ? 'none' : '' }}
+        >
+          {isEncrypting ? 
+            <i className="fas fa-spinner fa-spin"></i> : 
+            <i className="fas fa-paper-plane"></i>
+          }
+        </button>
+      </div>
       
-      {!sharedKey && (
-        <div className="encryption-notice">
-          <i className="fas fa-lock"></i>
+      {/* {!sharedKey && (
+        <div className="encryption-notice badge-neobrutalism">
+          <i className="fas fa-lock mr-1"></i>
           <span>Establishing secure connection...</span>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

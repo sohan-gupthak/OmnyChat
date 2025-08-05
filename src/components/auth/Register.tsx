@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { register } from '../../store/slices/authSlice';
-import './Auth.css';
+import DecryptedText from '../ui/DecryptedText';
+import './AuthNeobrutalism.css';
 
 const Register: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -47,19 +48,43 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h2>Create an Account</h2>
-        <p className="auth-subtitle">Join OmnyChat for secure messaging</p>
+    <div className="auth-container-neobrutalism">
+      <div className="auth-card-neobrutalism">
+        <div className="auth-title-container">
+          <h2>
+            <DecryptedText 
+              text="Create an Account" 
+              animateOn="view" 
+              revealDirection="center" 
+              speed={150}
+              maxIterations={15}
+              characters="ABCD1234!?"
+              className="auth-decrypted"
+              parentClassName=""
+              encryptedClassName="auth-encrypted"
+            />
+          </h2>
+          <p className="auth-subtitle-neobrutalism">
+            <DecryptedText 
+              text="Join OmnyChat for secure messaging" 
+              animateOn="view" 
+              sequential={true}
+              speed={50}
+              className="auth-decrypted"
+              parentClassName=""
+              encryptedClassName="auth-encrypted"
+            />
+          </p>
+        </div>
         
         {(error || authError) && (
-          <div className="auth-error">
+          <div className="auth-error-neobrutalism">
             {error || authError}
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
+        <form onSubmit={handleSubmit} className="auth-form-neobrutalism">
+          <div className="form-group-neobrutalism">
             <label htmlFor="username">Username</label>
             <input
               type="text"
@@ -72,7 +97,7 @@ const Register: React.FC = () => {
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group-neobrutalism">
             <label htmlFor="email">Email</label>
             <input
               type="email"
@@ -85,7 +110,7 @@ const Register: React.FC = () => {
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group-neobrutalism">
             <label htmlFor="password">Password</label>
             <input
               type="password"
@@ -98,7 +123,7 @@ const Register: React.FC = () => {
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group-neobrutalism">
             <label htmlFor="confirmPassword">Confirm Password</label>
             <input
               type="password"
@@ -113,18 +138,18 @@ const Register: React.FC = () => {
           
           <button 
             type="submit" 
-            className="auth-button"
+            className="auth-button-neobrutalism"
             disabled={isLoading}
           >
             {isLoading ? 'Creating Account...' : 'Register'}
           </button>
         </form>
         
-        <div className="auth-footer">
+        <div className="auth-footer-neobrutalism">
           <p>
             Already have an account?{' '}
             <span 
-              className="auth-link"
+              className="auth-link-neobrutalism"
               onClick={() => navigate('/login')}
             >
               Login

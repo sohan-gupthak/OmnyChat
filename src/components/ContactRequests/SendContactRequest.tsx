@@ -4,6 +4,7 @@ import { sendContactRequest } from '../../store/slices/contactRequestsSlice';
 import { UserService } from '../../services';
 import { User } from '../../types';
 import './SendContactRequest.css';
+import '../../../src/styles/neobrutalism.css';
 
 interface SendContactRequestProps {
   onClose: () => void;
@@ -75,57 +76,113 @@ const SendContactRequest: React.FC<SendContactRequestProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="send-request-container">
-      <h2>Send Contact Request</h2>
-      {error && <div className="error-message">{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="searchQuery">Search by username or email:</label>
-          <input
-            type="text"
-            id="searchQuery"
-            value={selectedUser ? `${selectedUser.username} (${selectedUser.email})` : searchQuery}
-            onChange={(e) => {
-              setSelectedUser(null);
-              setSearchQuery(e.target.value);
-            }}
-            placeholder="Enter username or email"
-            disabled={isLoading}
-            required
-          />
-          {isSearching && <div className="searching-indicator">Searching...</div>}
-          
-          {searchResults.length > 0 && !selectedUser && (
-            <div className="search-results">
-              {searchResults.map(user => (
-                <div 
-                  key={user.id} 
-                  className="search-result-item"
-                  onClick={() => handleSelectUser(user)}
-                >
-                  <div className="user-avatar">{user.username.charAt(0).toUpperCase()}</div>
-                  <div className="user-info">
-                    <div className="username">{user.username}</div>
-                    <div className="email">{user.email}</div>
-                  </div>
+    <div className="card-neobrutalism" style={{ width: '100%' }}>
+      <div className="header-neobrutalism">
+        <h2 style={{ fontWeight: 'bold', fontSize: '1.5rem' }}>Send Contact Request</h2>
+        <p style={{ marginTop: '0.5rem', color: 'var(--color-text-muted)' }}>Search for users to connect with</p>
+      </div>
+      
+      <div style={{ padding: '1.5rem' }}>
+        {error && (
+          <div className="badge-neobrutalism" style={{ backgroundColor: 'var(--color-error)', marginBottom: '1rem', padding: '0.75rem', width: '100%', textAlign: 'center' }}>
+            <i className="fas fa-exclamation-circle mr-2"></i>
+            {error}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label htmlFor="searchQuery" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+              Search by username or email:
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                id="searchQuery"
+                className="input-neobrutalism"
+                value={selectedUser ? `${selectedUser.username} (${selectedUser.email})` : searchQuery}
+                onChange={(e) => {
+                  setSelectedUser(null);
+                  setSearchQuery(e.target.value);
+                }}
+                placeholder="Enter username or email"
+                disabled={isLoading}
+                required
+                style={{ width: '100%' }}
+              />
+              
+              {isSearching && (
+                <div className="badge-neobrutalism" style={{ marginTop: '0.5rem', backgroundColor: 'var(--color-info)' }}>
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  Searching...
                 </div>
-              ))}
+              )}
+              
+              {searchResults.length > 0 && !selectedUser && (
+                <div className="search-results" style={{ 
+                  position: 'absolute', 
+                  top: '100%', 
+                  left: 0, 
+                  right: 0, 
+                  zIndex: 10,
+                  marginTop: '0.25rem',
+                  backgroundColor: 'var(--color-background)',
+                  border: '3px solid var(--color-border)',
+                  borderRadius: 'var(--radius-base)',
+                  maxHeight: '250px',
+                  overflowY: 'auto',
+                  overflowX: 'hidden'
+                }}>
+                  {searchResults.map(user => (
+                    <div 
+                      key={user.id} 
+                      onClick={() => handleSelectUser(user)}
+                      style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '2px solid var(--color-border)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: 'var(--color-background)'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background-alt)'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background)'}
+                    >
+                      <div className="avatar-neobrutalism" style={{ marginRight: '0.75rem' }}>
+                        {user.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 'bold' }}>{user.username}</div>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>{user.email}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className="form-actions">
-          <button type="button" className="cancel-btn" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </button>
-          <button 
-            type="submit" 
-            className="submit-btn" 
-            disabled={isLoading || !selectedUser}
-          >
-            {isLoading ? 'Sending...' : 'Send Request'}
-          </button>
-        </div>
-      </form>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+            <button 
+              type="button" 
+              className="btn-neobrutalism" 
+              onClick={onClose} 
+              disabled={isLoading}
+              style={{ color: 'var(--color-text)', flex: '1', backgroundColor: 'var(--color-background-alt)' }}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="btn-neobrutalism" 
+              disabled={isLoading || !selectedUser}
+              style={{ flex: '1' }}
+            >
+              {isLoading ? 'Sending...' : 'Send Request'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
