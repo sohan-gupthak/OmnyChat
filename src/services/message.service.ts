@@ -44,12 +44,27 @@ export class MessageService {
         isEncrypted
       };
       
+      try {
+        const response = await api.post('/messages', {
+          recipientId,
+          content: encryptedContent,
+          timestamp
+        });
+        
+        if (response.data && response.data.data && response.data.data.id) {
+          message.id = response.data.data.id;
+        }
+      } catch (dbError) {
+        console.error('Error storing message in database:', dbError);
+      }
+      
       // Try to send via WebRTC first
       try {
         await webrtcService.sendMessage(recipientId, 'message', {
           content: encryptedContent,
           timestamp,
-          isEncrypted
+          isEncrypted,
+          id: message.id
         });
         
         message.status = 'sent';
@@ -61,7 +76,8 @@ export class MessageService {
         websocketService.send('message', {
           recipient: recipientId,
           encryptedContent: encryptedContent,
-          timestamp
+          timestamp,
+          id: message.id // Include message ID to prevent duplicate storage
         });
         
         return message;
@@ -165,7 +181,7 @@ export class MessageService {
    * @param data Message data
    * @param peerId Peer user ID
    */
-  private handleWebRTCMessage(data: any, peerId: number): void {
+  private async handleWebRTCMessage(data: any, peerId: number): Promise<void> {
     const message: Message = {
       senderId: peerId,
       recipientId: parseInt(localStorage.getItem('userId') || '0'),
@@ -174,6 +190,28 @@ export class MessageService {
       status: 'delivered',
       isEncrypted: data.isEncrypted || false
     };
+    
+    // If the message has an ID from the sender, use it
+    if (data.id) {
+      message.id = data.id;
+    }
+    
+    // Store received P2P message in database
+    try {
+      if (!message.id) {
+        const response = await api.post('/messages/received', {
+          senderId: peerId,
+          content: data.content,
+          timestamp: data.timestamp
+        });
+        
+        if (response.data && response.data.data && response.data.data.id) {
+          message.id = response.data.data.id;
+        }
+      }
+    } catch (dbError) {
+      console.error('Error storing received P2P message in database:', dbError);
+    }
     
     // Notify all handlers
     this.messageHandlers.forEach(handler => handler(message));
