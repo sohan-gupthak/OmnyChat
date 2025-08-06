@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from '../../store';
 import { getUserKey } from '../../store/slices/keysSlice';
 import { KeyService } from '../../services';
 import { updateUnreadCount } from '../../store/slices/contactsSlice';
-import { setSharedKey } from '../../store/slices/messagesSlice';
+import { setSharedKey, fetchConversationHistory } from '../../store/slices/messagesSlice';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import KeyVerification from './KeyVerification';
@@ -25,13 +25,15 @@ const ChatWindow: React.FC = () => {
   const messages = conversation?.messages || [];
   const sharedKey = conversation?.sharedKey;
   
-  // Fetch contact's public key if not available and reset unread count
+  // Fetch contact's public key, conversation history, and reset unread count
   useEffect(() => {
     if (selectedContact && selectedContact.contactId) {
       // Fetch key if not available
       if (!contactKeys[selectedContact.contactId]) {
         dispatch(getUserKey(selectedContact.contactId));
       }
+      
+      dispatch(fetchConversationHistory(selectedContact.contactId));
       
       // Reset unread count when contact is selected
       dispatch(updateUnreadCount({

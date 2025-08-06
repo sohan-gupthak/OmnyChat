@@ -100,6 +100,16 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// Offline messages response type
+export interface OfflineMessagesResponse {
+  messages: {
+    id: number;
+    sender: number;
+    content: string;
+    timestamp: string;
+  }[];
+}
+
 // User search response type
 export interface UserSearchResponse {
   users: User[];

@@ -1,5 +1,5 @@
 import api from './api';
-import { Message, ApiResponse } from '../types';
+import { Message, ApiResponse, OfflineMessagesResponse } from '../types';
 import websocketService from './websocket.service';
 import webrtcService from './webrtc.service';
 import cryptoService from './crypto.service';
@@ -92,14 +92,37 @@ export class MessageService {
    * Get offline messages from the server
    * @returns Promise with list of messages
    */
-  async getOfflineMessages(): Promise<ApiResponse<Message[]>> {
+  async getOfflineMessages(): Promise<ApiResponse<OfflineMessagesResponse>> {
     try {
+      console.log('Fetching offline messages...');
       const response = await api.get('/messages/offline');
+      console.log('Offline messages response:', response.data);
       return response.data;
     } catch (error: any) {
+      console.error('Error fetching offline messages:', error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to get offline messages'
+      };
+    }
+  }
+  
+  /**
+   * Get conversation history with a contact
+   * @param contactId Contact user ID
+   * @returns Promise with conversation history
+   */
+  async getConversationHistory(contactId: number): Promise<ApiResponse<OfflineMessagesResponse>> {
+    try {
+      console.log(`Fetching conversation history with contact ${contactId}...`);
+      const response = await api.get(`/messages/conversation/${contactId}`);
+      console.log('Conversation history response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching conversation history:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to get conversation history'
       };
     }
   }

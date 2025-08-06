@@ -35,22 +35,69 @@ export const fetchOfflineMessages = createAsyncThunk(
   async (_, { rejectWithValue, getState }) => {
     try {
       const response = await messageService.getOfflineMessages();
-      if (!response.success || !response.data) {
+      if (!response.success || !response.data || !response.data.messages) {
         return rejectWithValue(response.error || 'Failed to fetch offline messages');
       }
       
       // Group messages by sender
       const messagesBySender: Record<number, Message[]> = {};
-      response.data.forEach(message => {
-        if (!messagesBySender[message.senderId]) {
-          messagesBySender[message.senderId] = [];
+      response.data.messages.forEach((message: { id: number; sender: number; content: string; timestamp: string }) => {
+        // Convert backend message format to frontend Message format
+        const formattedMessage: Message = {
+          id: message.id,
+          senderId: message.sender,
+          recipientId: parseInt(localStorage.getItem('userId') || '0'),
+          content: message.content,
+          timestamp: message.timestamp,
+          status: 'delivered',
+          isEncrypted: true // Assume all offline messages are encrypted
+        };
+        
+        if (!messagesBySender[formattedMessage.senderId]) {
+          messagesBySender[formattedMessage.senderId] = [];
         }
-        messagesBySender[message.senderId].push(message);
+        messagesBySender[formattedMessage.senderId].push(formattedMessage);
       });
       
+      console.log('Processed offline messages by sender:', messagesBySender);
       return messagesBySender;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch offline messages');
+    }
+  }
+);
+
+export const fetchConversationHistory = createAsyncThunk(
+  'messages/fetchConversationHistory',
+  async (contactId: number, { rejectWithValue, getState }) => {
+    try {
+      const response = await messageService.getConversationHistory(contactId);
+      if (!response.success || !response.data || !response.data.messages) {
+        return rejectWithValue(response.error || 'Failed to fetch conversation history');
+      }
+      
+      const userId = parseInt(localStorage.getItem('userId') || '0');
+      const messages: Message[] = [];
+      
+      // Convert backend message format to frontend Message format
+      response.data.messages.forEach((message: any) => {
+        const formattedMessage: Message = {
+          id: message.id,
+          senderId: message.sender,
+          recipientId: message.recipient,
+          content: message.content,
+          timestamp: message.timestamp,
+          status: message.isDelivered ? 'delivered' : 'sent',
+          isEncrypted: true // Assume all messages are encrypted
+        };
+        
+        messages.push(formattedMessage);
+      });
+      
+      console.log(`Processed ${messages.length} conversation messages with contact ${contactId}`);
+      return { contactId, messages };
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to fetch conversation history');
     }
   }
 );
@@ -242,6 +289,43 @@ const messagesSlice = createSlice({
       });
     });
     builder.addCase(fetchOfflineMessages.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload as string;
+    });
+    
+    // Fetch Conversation History
+    builder.addCase(fetchConversationHistory.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchConversationHistory.fulfilled, (state, action) => {
+      state.isLoading = false;
+      const { contactId, messages } = action.payload;
+      
+      // Create conversation if it doesn't exist
+      if (!state.conversations[contactId]) {
+        state.conversations[contactId] = {
+          contact: {
+            id: 0, // Will be updated when contact info is fetched
+            userId: parseInt(localStorage.getItem('userId') || '0'),
+            contactId,
+            username: 'Unknown', // Will be updated when contact info is fetched
+            isOnline: false,
+            unreadCount: 0
+          },
+          messages: []
+        };
+      }
+      
+      // Replace existing messages with conversation history
+      state.conversations[contactId].messages = messages;
+      
+      // Sort messages by timestamp
+      state.conversations[contactId].messages.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+    });
+    builder.addCase(fetchConversationHistory.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload as string;
     });
