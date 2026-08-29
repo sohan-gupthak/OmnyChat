@@ -21,26 +21,28 @@ export class MessageService {
     sharedKey?: CryptoKey
   ): Promise<Message> {
     const timestamp = new Date().toISOString();
-    let encryptedContent = content;
-    let isEncrypted = false;
-    if (sharedKey) {
-      encryptedContent = await cryptoService.encryptMessage(content, sharedKey);
-      isEncrypted = true;
-    }
-
     const senderId = parseInt(localStorage.getItem('userId') || '0');
     const clientMessageId =
       typeof crypto !== 'undefined' && (crypto as any).randomUUID
         ? (crypto as any).randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+    // Encrypt only the wire payload. The local message keeps the plaintext so
+    // the sender's own chat shows the text without depending on the
+    // decryption effect racing the slice update.
+    const wasEncrypted = !!sharedKey;
+    const encryptedContent = wasEncrypted
+      ? await cryptoService.encryptMessage(content, sharedKey!)
+      : content;
+    const isEncrypted = wasEncrypted;
+
     const message: Message = {
       senderId,
       recipientId,
-      content: encryptedContent,
+      content, // local display: plaintext
       timestamp,
       status: 'sent',
-      isEncrypted,
+      isEncrypted: false, // local copy: already plaintext
       clientMessageId,
     };
 

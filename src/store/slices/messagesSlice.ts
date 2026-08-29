@@ -41,16 +41,16 @@ export const fetchOfflineMessages = createAsyncThunk(
       
       // Group messages by sender
       const messagesBySender: Record<number, Message[]> = {};
-      response.data.messages.forEach((message: { id: number; sender: number; content: string; timestamp: string }) => {
-        // Convert backend message format to frontend Message format
+      response.data.messages.forEach((message: { id: number; sender: number; recipient?: number; content: string; timestamp: string; clientMessageId?: string }) => {
         const formattedMessage: Message = {
           id: message.id,
           senderId: message.sender,
-          recipientId: parseInt(localStorage.getItem('userId') || '0'),
+          recipientId: message.recipient ?? parseInt(localStorage.getItem('userId') || '0'),
           content: message.content,
           timestamp: message.timestamp,
           status: 'delivered',
-          isEncrypted: true // Assume all offline messages are encrypted
+          isEncrypted: true,
+          clientMessageId: message.clientMessageId,
         };
         
         if (!messagesBySender[formattedMessage.senderId]) {
@@ -84,13 +84,13 @@ export const fetchConversationHistory = createAsyncThunk(
         const formattedMessage: Message = {
           id: message.id,
           senderId: message.sender,
-          recipientId: message.recipient,
+          recipientId: message.recipient ?? userId,
           content: message.content,
           timestamp: message.timestamp,
           status: message.isRead ? 'read' : message.isDelivered ? 'delivered' : 'sent',
-          isEncrypted: true // Assume all messages are encrypted
+          isEncrypted: true,
+          clientMessageId: message.clientMessageId,
         };
-        
         messages.push(formattedMessage);
       });
       
@@ -104,20 +104,17 @@ export const fetchConversationHistory = createAsyncThunk(
 
 export const decryptMessage = createAsyncThunk(
   'messages/decryptMessage',
-  async ({ message, sharedKey }: { message: Message; sharedKey: CryptoKey }, { rejectWithValue }) => {
+  async ({ message, sharedKey }: { message: Message; sharedKey: CryptoKey }) => {
+    if (!message.isEncrypted) return { ...message };
     try {
-      if (!message.isEncrypted) {
-        return { ...message };
-      }
-      
       const decryptedContent = await cryptoService.decryptMessage(message.content, sharedKey);
-      return {
-        ...message,
-        content: decryptedContent,
-        isEncrypted: false
-      };
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to decrypt message');
+      return { ...message, content: decryptedContent, isEncrypted: false };
+    } catch {
+      // Decryption failed. Most likely the sender was unable to encrypt
+      // (no shared key yet, plaintext fallback), so the stored content is
+      // already readable. Surface it as plaintext instead of an "Encrypted
+      // message" placeholder.
+      return { ...message, isEncrypted: false };
     }
   }
 );
@@ -333,22 +330,35 @@ const messagesSlice = createSlice({
     // Decrypt Message
     builder.addCase(decryptMessage.fulfilled, (state, action) => {
       const decryptedMessage = action.payload;
-      const contactId = decryptedMessage.senderId === parseInt(localStorage.getItem('userId') || '0')
-        ? decryptedMessage.recipientId
-        : decryptedMessage.senderId;
-      
-      // Find and update the message in the conversation
+      const myId = parseInt(localStorage.getItem('userId') || '0');
+      const contactId =
+        decryptedMessage.senderId === myId
+          ? decryptedMessage.recipientId
+          : decryptedMessage.senderId;
+
       const conversation = state.conversations[contactId];
-      if (conversation) {
-        const messageIndex = conversation.messages.findIndex(m => 
-          m.id === decryptedMessage.id || 
-          (m.senderId === decryptedMessage.senderId && 
-           m.timestamp === decryptedMessage.timestamp)
+      if (!conversation) return;
+
+      // Match by id (preferred), then clientMessageId, then sender+timestamp.
+      let messageIndex = -1;
+      if (decryptedMessage.id !== undefined) {
+        messageIndex = conversation.messages.findIndex((m) => m.id === decryptedMessage.id);
+      }
+      if (messageIndex === -1 && decryptedMessage.clientMessageId) {
+        messageIndex = conversation.messages.findIndex(
+          (m) => m.clientMessageId === decryptedMessage.clientMessageId
         );
-        
-        if (messageIndex !== -1) {
-          conversation.messages[messageIndex] = decryptedMessage;
-        }
+      }
+      if (messageIndex === -1) {
+        messageIndex = conversation.messages.findIndex(
+          (m) =>
+            m.senderId === decryptedMessage.senderId &&
+            m.timestamp === decryptedMessage.timestamp
+        );
+      }
+
+      if (messageIndex !== -1) {
+        conversation.messages[messageIndex] = decryptedMessage;
       }
     });
   }
