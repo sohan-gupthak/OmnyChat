@@ -87,7 +87,7 @@ export const fetchConversationHistory = createAsyncThunk(
           recipientId: message.recipient,
           content: message.content,
           timestamp: message.timestamp,
-          status: message.isDelivered ? 'delivered' : 'sent',
+          status: message.isRead ? 'read' : message.isDelivered ? 'delivered' : 'sent',
           isEncrypted: true // Assume all messages are encrypted
         };
         

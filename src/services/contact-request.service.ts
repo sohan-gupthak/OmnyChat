@@ -1,20 +1,13 @@
 import api from './api';
-import { 
-  ApiResponse, 
-  ContactRequest, 
-  ContactRequestResponse, 
-  PendingRequestsResponse, 
-  SentRequestsResponse 
+import {
+  ApiResponse,
+  ContactRequest,
+  ContactRequestResponse,
+  PendingRequestsResponse,
+  SentRequestsResponse,
 } from '../types';
 
-/**
- * Service for handling contact request operations
- */
 export const contactRequestService = {
-  /**
-   * Get pending contact requests
-   * @returns Promise with pending contact requests
-   */
   getPendingRequests: async (): Promise<ApiResponse<PendingRequestsResponse>> => {
     try {
       const response = await api.get('/contact-requests/pending');
@@ -24,10 +17,6 @@ export const contactRequestService = {
     }
   },
 
-  /**
-   * Get sent contact requests
-   * @returns Promise with sent contact requests
-   */
   getSentRequests: async (): Promise<ApiResponse<SentRequestsResponse>> => {
     try {
       const response = await api.get('/contact-requests/sent');
@@ -38,24 +27,20 @@ export const contactRequestService = {
   },
 
   /**
-   * Send a contact request
-   * @param recipientId ID of the user to send the request to
-   * @returns Promise with the created contact request
+   * Send a request, with optional greeting message.
    */
-  sendRequest: async (recipientId: number): Promise<ApiResponse<ContactRequestResponse>> => {
+  sendRequest: async (
+    recipientId: number,
+    message?: string
+  ): Promise<ApiResponse<ContactRequestResponse>> => {
     try {
-      const response = await api.post('/contact-requests/send', { recipientId });
+      const response = await api.post('/contact-requests/send', { recipientId, message });
       return response.data;
     } catch (error: any) {
       throw error.response?.data || { success: false, error: 'Failed to send contact request' };
     }
   },
 
-  /**
-   * Accept a contact request
-   * @param requestId ID of the contact request to accept
-   * @returns Promise with success status
-   */
   acceptRequest: async (requestId: number): Promise<ApiResponse<null>> => {
     try {
       const response = await api.post(`/contact-requests/accept/${requestId}`);
@@ -65,11 +50,6 @@ export const contactRequestService = {
     }
   },
 
-  /**
-   * Reject a contact request
-   * @param requestId ID of the contact request to reject
-   * @returns Promise with success status
-   */
   rejectRequest: async (requestId: number): Promise<ApiResponse<null>> => {
     try {
       const response = await api.post(`/contact-requests/reject/${requestId}`);
@@ -79,11 +59,6 @@ export const contactRequestService = {
     }
   },
 
-  /**
-   * Cancel a contact request
-   * @param requestId ID of the contact request to cancel
-   * @returns Promise with success status
-   */
   cancelRequest: async (requestId: number): Promise<ApiResponse<null>> => {
     try {
       const response = await api.post(`/contact-requests/cancel/${requestId}`);
@@ -91,5 +66,5 @@ export const contactRequestService = {
     } catch (error: any) {
       throw error.response?.data || { success: false, error: 'Failed to cancel contact request' };
     }
-  }
+  },
 };

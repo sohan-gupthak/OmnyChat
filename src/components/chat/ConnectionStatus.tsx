@@ -50,14 +50,14 @@ const ConnectionStatus: React.FC = () => {
     };
     
     // Subscribe to connection status events
-    webrtcService.on('connection-status', handleWebRTCStatusChange);
+    webrtcService.onConnectionStatus(handleWebRTCStatusChange);
     websocketService.on('connection-status', handleServerStatusChange);
     
     // Check status periodically
     const intervalId = setInterval(checkConnectionStatus, 10000);
     
     return () => {
-      webrtcService.off('connection-status', handleWebRTCStatusChange);
+      webrtcService.offConnectionStatus(handleWebRTCStatusChange);
       websocketService.off('connection-status', handleServerStatusChange);
       clearInterval(intervalId);
     };

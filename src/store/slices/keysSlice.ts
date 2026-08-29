@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { KeyPair, UserKey } from '../../types';
+import { KeyPair, UserKey, KeyType } from '../../types';
 import { KeyService } from '../../services';
 
 // Define the state interface
@@ -25,7 +25,7 @@ export const generateKeyPair = createAsyncThunk(
   'keys/generateKeyPair',
   async (keyType: string = 'ecdh', { rejectWithValue }) => {
     try {
-      const keyPair = await KeyService.generateKeyPair(keyType);
+      const keyPair = await KeyService.generateKeyPair(keyType as KeyType);
       return keyPair;
     } catch (error: any) {
       return rejectWithValue(error.message || `Failed to generate ${keyType} key pair`);
@@ -37,7 +37,7 @@ export const publishKey = createAsyncThunk(
   'keys/publishKey',
   async ({ publicKey, keyType }: { publicKey: string; keyType: string }, { rejectWithValue }) => {
     try {
-      const response = await KeyService.publishKey(publicKey, keyType);
+      const response = await KeyService.publishKey(publicKey, keyType as KeyType);
       if (!response.success || !response.data) {
         console.error(`Failed to publish ${keyType} key:`, response.error);
         return rejectWithValue(response.error || `Failed to publish ${keyType} key`);

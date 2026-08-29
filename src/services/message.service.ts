@@ -8,239 +8,165 @@ export class MessageService {
   private messageHandlers: ((message: Message) => void)[] = [];
 
   constructor() {
-    // Listen for messages from WebSocket
-    websocketService.on('message', this.handleWebSocketMessage.bind(this));
-    
-    // Listen for messages from WebRTC
-    webrtcService.on('message', this.handleWebRTCMessage.bind(this));
+    websocketService.on('message', (payload: any) => this.handleWebSocketMessage(payload));
   }
 
   /**
-   * Send a message to a recipient
-   * @param recipientId Recipient user ID
-   * @param content Message content
-   * @param sharedKey Optional shared encryption key
-   * @returns Promise with sent message
+   * Send a message to a recipient.
+   * Order: encrypt -> persist (for offline) -> P2P via WebRTC -> fallback WS.
    */
-  async sendMessage(recipientId: number, content: string, sharedKey?: CryptoKey): Promise<Message> {
+  async sendMessage(
+    recipientId: number,
+    content: string,
+    sharedKey?: CryptoKey
+  ): Promise<Message> {
+    const timestamp = new Date().toISOString();
+    let encryptedContent = content;
+    let isEncrypted = false;
+    if (sharedKey) {
+      encryptedContent = await cryptoService.encryptMessage(content, sharedKey);
+      isEncrypted = true;
+    }
+
+    const senderId = parseInt(localStorage.getItem('userId') || '0');
+    const clientMessageId =
+      typeof crypto !== 'undefined' && (crypto as any).randomUUID
+        ? (crypto as any).randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const message: Message = {
+      senderId,
+      recipientId,
+      content: encryptedContent,
+      timestamp,
+      status: 'sent',
+      isEncrypted,
+      clientMessageId,
+    };
+
+    // Persist for offline delivery + dedup.
     try {
-      const timestamp = new Date().toISOString();
-      let encryptedContent = content;
-      let isEncrypted = false;
-      
-      // Encrypt message if shared key is provided
-      if (sharedKey) {
-        encryptedContent = await cryptoService.encryptMessage(content, sharedKey);
-        isEncrypted = true;
-      }
-      
-      // Create message object
-      const message: Message = {
-        senderId: parseInt(localStorage.getItem('userId') || '0'),
+      const response = await api.post('/messages/store', {
         recipientId,
+        encryptedContent,
+        clientMessageId,
+        timestamp,
+      });
+      const data = response.data?.data;
+      if (data?.messageId) message.id = data.messageId;
+    } catch (err) {
+      console.error('Error storing message:', err);
+    }
+
+    // Try P2P first.
+    try {
+      await webrtcService.sendMessage(recipientId, 'message', {
         content: encryptedContent,
         timestamp,
-        status: 'sent',
-        isEncrypted
-      };
-      
-      try {
-        const response = await api.post('/messages', {
-          recipientId,
-          content: encryptedContent,
-          timestamp
-        });
-        
-        if (response.data && response.data.data && response.data.data.id) {
-          message.id = response.data.data.id;
-        }
-      } catch (dbError) {
-        console.error('Error storing message in database:', dbError);
-      }
-      
-      // Try to send via WebRTC first
-      try {
-        await webrtcService.sendMessage(recipientId, 'message', {
-          content: encryptedContent,
-          timestamp,
-          isEncrypted,
-          id: message.id
-        });
-        
-        message.status = 'sent';
-        return message;
-      } catch (error) {
-        console.log('WebRTC send failed, falling back to WebSocket');
-        
-        // Fall back to WebSocket
-        websocketService.send('message', {
-          recipient: recipientId,
-          encryptedContent: encryptedContent,
-          timestamp,
-          id: message.id // Include message ID to prevent duplicate storage
-        });
-        
-        return message;
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw new Error('Failed to send message');
+        isEncrypted,
+        id: message.id,
+        clientMessageId,
+      });
+      message.status = 'sent';
+      return message;
+    } catch (err) {
+      // Fall back to WebSocket live delivery.
+      websocketService.send('message', {
+        recipient: recipientId,
+        encryptedContent,
+        timestamp,
+        clientMessageId,
+        id: message.id,
+      });
+      return message;
     }
   }
 
   /**
-   * Get offline messages from the server
-   * @returns Promise with list of messages
+   * Get offline messages from the server.
    */
   async getOfflineMessages(): Promise<ApiResponse<OfflineMessagesResponse>> {
     try {
-      console.log('Fetching offline messages...');
       const response = await api.get('/messages/offline');
-      console.log('Offline messages response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching offline messages:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Failed to get offline messages'
-      };
-    }
-  }
-  
-  /**
-   * Get conversation history with a contact
-   * @param contactId Contact user ID
-   * @returns Promise with conversation history
-   */
-  async getConversationHistory(contactId: number): Promise<ApiResponse<OfflineMessagesResponse>> {
-    try {
-      console.log(`Fetching conversation history with contact ${contactId}...`);
-      const response = await api.get(`/messages/conversation/${contactId}`);
-      console.log('Conversation history response:', response.data);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching conversation history:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Failed to get conversation history'
-      };
+      return { success: false, error: error.response?.data?.error || 'Failed to get offline messages' };
     }
   }
 
   /**
-   * Mark a message as read
-   * @param messageId Message ID
-   * @returns Promise with success status
+   * Get chat history with a contact, paginated by ?before=ISO.
    */
-  async markAsRead(messageId: number): Promise<ApiResponse<void>> {
+  async getConversationHistory(
+    contactId: number,
+    options: { before?: string; limit?: number } = {}
+  ): Promise<ApiResponse<OfflineMessagesResponse>> {
     try {
-      const response = await api.post(`/messages/${messageId}/read`);
+      const params = new URLSearchParams();
+      if (options.before) params.set('before', options.before);
+      if (options.limit) params.set('limit', String(options.limit));
+      const query = params.toString();
+      const response = await api.get(
+        `/messages/conversation/${contactId}${query ? `?${query}` : ''}`
+      );
       return response.data;
     } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Failed to mark message as read'
-      };
+      return { success: false, error: error.response?.data?.error || 'Failed to get conversation history' };
     }
   }
 
   /**
-   * Register a handler for incoming messages
-   * @param handler Message handler function
+   * Mark a batch of messages as read.
    */
+  async markAsRead(messageIds: number[]): Promise<ApiResponse<void>> {
+    try {
+      const response = await api.post('/messages/mark-read', { messageIds });
+      return response.data;
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.error || 'Failed to mark messages as read' };
+    }
+  }
+
   onMessage(handler: (message: Message) => void): void {
     this.messageHandlers.push(handler);
   }
 
-  /**
-   * Remove a message handler
-   * @param handler Message handler to remove
-   */
   offMessage(handler: (message: Message) => void): void {
-    const index = this.messageHandlers.indexOf(handler);
-    if (index !== -1) {
-      this.messageHandlers.splice(index, 1);
-    }
+    const idx = this.messageHandlers.indexOf(handler);
+    if (idx !== -1) this.messageHandlers.splice(idx, 1);
   }
 
-  /**
-   * Handle incoming WebSocket messages
-   * @param payload Message payload
-   */
   private handleWebSocketMessage(payload: any): void {
+    const myId = parseInt(localStorage.getItem('userId') || '0');
     if (payload.sender && payload.encryptedContent) {
       const message: Message = {
+        id: payload.id,
         senderId: payload.sender,
-        recipientId: parseInt(localStorage.getItem('userId') || '0'),
+        recipientId: payload.recipient ?? myId,
         content: payload.encryptedContent,
         timestamp: payload.timestamp || new Date().toISOString(),
         status: 'delivered',
-        isEncrypted: true // Assume all WebSocket messages are encrypted
+        isEncrypted: true,
+        clientMessageId: payload.clientMessageId,
       };
-      
-      // Notify all handlers
-      this.messageHandlers.forEach(handler => handler(message));
+      this.messageHandlers.forEach((h) => h(message));
     } else if (payload.pendingMessages) {
-      // Handle batch of offline messages
-      payload.pendingMessages.forEach((msg: any) => {
+      for (const msg of payload.pendingMessages) {
         const message: Message = {
           id: msg.id,
           senderId: msg.sender,
-          recipientId: parseInt(localStorage.getItem('userId') || '0'),
+          recipientId: msg.recipient ?? myId,
           content: msg.content,
           timestamp: msg.timestamp,
           status: 'delivered',
-          isEncrypted: true // Assume all offline messages are encrypted
+          isEncrypted: true,
+          clientMessageId: msg.clientMessageId,
         };
-        
-        // Notify all handlers
-        this.messageHandlers.forEach(handler => handler(message));
-      });
-    }
-  }
-
-  /**
-   * Handle incoming WebRTC messages
-   * @param data Message data
-   * @param peerId Peer user ID
-   */
-  private async handleWebRTCMessage(data: any, peerId: number): Promise<void> {
-    const message: Message = {
-      senderId: peerId,
-      recipientId: parseInt(localStorage.getItem('userId') || '0'),
-      content: data.content,
-      timestamp: data.timestamp || new Date().toISOString(),
-      status: 'delivered',
-      isEncrypted: data.isEncrypted || false
-    };
-    
-    // If the message has an ID from the sender, use it
-    if (data.id) {
-      message.id = data.id;
-    }
-    
-    // Store received P2P message in database
-    try {
-      if (!message.id) {
-        const response = await api.post('/messages/received', {
-          senderId: peerId,
-          content: data.content,
-          timestamp: data.timestamp
-        });
-        
-        if (response.data && response.data.data && response.data.data.id) {
-          message.id = response.data.data.id;
-        }
+        this.messageHandlers.forEach((h) => h(message));
       }
-    } catch (dbError) {
-      console.error('Error storing received P2P message in database:', dbError);
     }
-    
-    // Notify all handlers
-    this.messageHandlers.forEach(handler => handler(message));
   }
 }
 
-// Create singleton instance
 const messageService = new MessageService();
 export default messageService;

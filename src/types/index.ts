@@ -1,16 +1,19 @@
-// User types
+// User types -----------------------------------------------------------------
 export interface User {
   id: number;
   username: string;
   email: string;
-  createdAt: string;
+  is_active?: boolean;
+  last_login_at?: string | null;
+  createdAt?: string;
+  created_at?: string;
 }
 
 export interface UserWithPresence extends User {
   isOnline: boolean;
 }
 
-// Authentication types
+// Auth -----------------------------------------------------------------------
 export interface AuthState {
   user: User | null;
   token: string | null;
@@ -30,49 +33,66 @@ export interface RegisterCredentials {
   password: string;
 }
 
-// Key types
+// Keys -----------------------------------------------------------------------
+export type KeyType = 'ecdh' | 'ed25519';
+export type KeyAlgorithm = 'ecdh' | 'ed25519' | 'rsa';
+
 export interface KeyPair {
   publicKey: string;
   privateKey: string;
-  keyType?: string; // Type of key ('ecdh' or 'ed25519')
+  keyType?: KeyType;
 }
 
+/**
+ * Public-key record returned by the server.
+ * `signature` is the server's signature of `publicKey`.
+ */
 export interface UserKey {
-  userId: number;
+  id?: number;
+  userId?: number;
   publicKey: string;
   signature: string;
-  createdAt: string;
-  verified?: boolean; // Whether the key has been manually verified by the user
+  keyType: KeyType;
+  keyAlgorithm?: KeyAlgorithm;
+  deviceId?: string | null;
+  isActive?: boolean;
+  createdAt?: string;
+  verified?: boolean;
 }
 
-// Chat types
+// Contacts -------------------------------------------------------------------
 export interface Contact {
   id: number;
   userId: number;
   contactId: number;
   username: string;
+  email?: string;
   isOnline: boolean;
   lastSeen?: string;
   unreadCount: number;
 }
 
+// Messages -------------------------------------------------------------------
 export interface Message {
   id?: number;
   senderId: number;
   recipientId: number;
-  content: string; // Encrypted content
+  content: string;
   timestamp: string;
   status: 'sent' | 'delivered' | 'read' | 'failed';
   isEncrypted: boolean;
+  isRead?: boolean;
+  isDelivered?: boolean;
+  clientMessageId?: string;
 }
 
 export interface Conversation {
   contact: Contact;
   messages: Message[];
-  sharedKey?: CryptoKey; // For end-to-end encryption
+  sharedKey?: CryptoKey;
 }
 
-// WebRTC types
+// WebRTC ---------------------------------------------------------------------
 export interface SignalData {
   type: string;
   sdp?: string;
@@ -86,13 +106,21 @@ export interface WebRTCState {
   error: string | null;
 }
 
-// WebSocket types
+// WebSocket ------------------------------------------------------------------
+export type WebSocketMessageType =
+  | 'connect'
+  | 'disconnect'
+  | 'signal'
+  | 'message'
+  | 'presence'
+  | 'error';
+
 export interface WebSocketMessage {
-  type: 'connect' | 'disconnect' | 'signal' | 'message' | 'presence' | 'error';
+  type: WebSocketMessageType;
   payload: any;
 }
 
-// API response types
+// API responses --------------------------------------------------------------
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -100,49 +128,50 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
-// Offline messages response type
 export interface OfflineMessagesResponse {
-  messages: {
+  messages: Array<{
     id: number;
     sender: number;
+    recipient?: number;
     content: string;
     timestamp: string;
-  }[];
+    isRead?: boolean;
+    isDelivered?: boolean;
+    clientMessageId?: string;
+  }>;
 }
 
-// User search response type
 export interface UserSearchResponse {
   users: User[];
 }
 
-// User contacts response type
 export interface UserContactsResponse {
   contacts: Contact[];
 }
 
-// Contact response type
 export interface ContactResponse {
   contact: Contact;
 }
 
-// Single user response type
 export interface UserResponse {
   user: User;
 }
 
-// Contact request types
+// Contact requests -----------------------------------------------------------
+export type ContactRequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
+
 export interface ContactRequest {
   id: number;
   sender_id: number;
   recipient_id: number;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: ContactRequestStatus;
+  message?: string | null;
   created_at: string;
   updated_at: string;
   sender?: User;
   recipient?: User;
 }
 
-// Contact request response types
 export interface PendingRequestsResponse {
   requests: ContactRequest[];
 }
