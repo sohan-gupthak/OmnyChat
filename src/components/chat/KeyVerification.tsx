@@ -77,7 +77,7 @@ const KeyVerification: React.FC<KeyVerificationProps> = ({ contactId, onClose })
           setVerificationError(`Failed to fetch contact key. Please try again.`);
         });
     }
-  }, [contactId, contactKeys, dispatch]);
+  }, [contactId, dispatch]);
 
   // Generate key fingerprint for verification
   useEffect(() => {

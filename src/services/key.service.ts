@@ -1,61 +1,38 @@
 import api from './api';
-import { KeyPair, UserKey, ApiResponse, KeyType, KeyAlgorithm } from '../types';
+import { KeyPair, UserKey, ApiResponse } from '../types';
 
 export const KeyService = {
   /**
-   * Generate a local key pair. Real implementations should use libsodium/tweetnacl.
-   * This WebCrypto-based fallback is for the browser demo path; backend signs and
-   * stores the public half.
+   * Generate a local ECDH P-256 key pair. The public half is uploaded to the
+   * server (signed by the server) and the private half stays in localStorage.
    */
-  async generateKeyPair(keyType: KeyType = 'ecdh'): Promise<KeyPair> {
-    if (keyType === 'ecdh') {
-      const subtle = window.crypto.subtle;
-      const keyPair = await subtle.generateKey(
-        { name: 'ECDH', namedCurve: 'P-256' },
-        true,
-        ['deriveKey', 'deriveBits']
-      );
-      const publicKey = btoa(
-        String.fromCharCode(...new Uint8Array(await subtle.exportKey('spki', keyPair.publicKey)))
-      );
-      const privateKey = btoa(
-        String.fromCharCode(...new Uint8Array(await subtle.exportKey('pkcs8', keyPair.privateKey)))
-      );
-      return { publicKey, privateKey, keyType };
-    }
-    if (keyType === 'ed25519') {
-      // Browser WebCrypto has no Ed25519. Server signs whatever the client uploads
-      // with its RSA key, so the algorithm field is what the verifier checks.
-      const subtle = window.crypto.subtle;
-      const keyPair = await subtle.generateKey(
-        { name: 'ECDH', namedCurve: 'P-256' },
-        true,
-        ['deriveKey', 'deriveBits']
-      );
-      const publicKey = btoa(
-        String.fromCharCode(...new Uint8Array(await subtle.exportKey('spki', keyPair.publicKey)))
-      );
-      const privateKey = btoa(
-        String.fromCharCode(...new Uint8Array(await subtle.exportKey('pkcs8', keyPair.privateKey)))
-      );
-      return { publicKey, privateKey, keyType };
-    }
-    throw new Error(`Unsupported key type: ${keyType}`);
+  async generateKeyPair(): Promise<KeyPair> {
+    const subtle = window.crypto.subtle;
+    const keyPair = await subtle.generateKey(
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      ['deriveKey', 'deriveBits']
+    );
+    const publicKey = btoa(
+      String.fromCharCode(...new Uint8Array(await subtle.exportKey('spki', keyPair.publicKey)))
+    );
+    const privateKey = btoa(
+      String.fromCharCode(...new Uint8Array(await subtle.exportKey('pkcs8', keyPair.privateKey)))
+    );
+    return { publicKey, privateKey, keyType: 'ecdh' };
   },
 
   /**
-   * Upload the public half of a key pair to the server.
+   * Upload the public half to the server. Backend always treats the
+   * uploaded blob as an ECDH public key and signs it.
    */
   async publishKey(
     publicKey: string,
-    keyType: KeyType = 'ecdh',
-    options: { keyAlgorithm?: KeyAlgorithm; deviceId?: string } = {}
+    options: { deviceId?: string } = {}
   ): Promise<ApiResponse<UserKey>> {
     try {
       const response = await api.post('/keys/publish', {
         public_key: publicKey,
-        key_type: keyType,
-        key_algorithm: options.keyAlgorithm,
         device_id: options.deviceId,
       });
       return response.data;
@@ -65,17 +42,19 @@ export const KeyService = {
   },
 
   /**
-   * Fetch a user's public key.
+   * Fetch a user's ECDH public key. The server returns 200 with
+   * `data: null` when the user has not published a key yet, which the slice
+   * translates into a sentinel (empty publicKey) without retrying.
    */
   async getUserKey(
     userId: number,
-    options: { keyType?: KeyType; deviceId?: string } = {}
-  ): Promise<ApiResponse<UserKey>> {
+    options: { deviceId?: string } = {}
+  ): Promise<ApiResponse<UserKey | null>> {
     try {
       const params = new URLSearchParams();
-      params.set('type', options.keyType ?? 'ecdh');
       if (options.deviceId) params.set('deviceId', options.deviceId);
-      const response = await api.get(`/keys/${userId}?${params.toString()}`);
+      const query = params.toString();
+      const response = await api.get(`/keys/${userId}${query ? `?${query}` : ''}`);
       return response.data;
     } catch (error: any) {
       return { success: false, error: error.response?.data?.error || 'Failed to get user key' };
@@ -95,8 +74,8 @@ export const KeyService = {
   },
 
   /**
-   * Verify that the signature on a user's public key was produced by the server.
-   * Backend signs with RSA; this verifies with RSA.
+   * Verify that the signature on a user's public key was produced by the
+   * server. Server signs with RSA; this verifies with RSA.
    */
   async verifyKeySignature(userKey: UserKey, serverPublicKey: string): Promise<boolean> {
     try {

@@ -2,50 +2,78 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { KeyPair, UserKey, KeyType } from '../../types';
 import { KeyService } from '../../services';
 
-// Define the state interface
+const STORAGE_PRIVATE = 'omnychat:ecdhPrivateKey';
+const STORAGE_PUBLIC = 'omnychat:ecdhPublicKey';
+const STORAGE_DEVICE = 'omnychat:deviceId';
+
+function getOrCreateDeviceId(): string {
+  const existing = localStorage.getItem(STORAGE_DEVICE);
+  if (existing) return existing;
+  const fresh =
+    typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function'
+      ? (crypto as any).randomUUID()
+      : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  localStorage.setItem(STORAGE_DEVICE, fresh);
+  return fresh;
+}
+
+function readPersistedKeyPair(): KeyPair | null {
+  const priv = localStorage.getItem(STORAGE_PRIVATE);
+  const pub = localStorage.getItem(STORAGE_PUBLIC);
+  if (!priv || !pub) return null;
+  return { publicKey: pub, privateKey: priv, keyType: 'ecdh' };
+}
+
+function persistKeyPair(kp: KeyPair): void {
+  localStorage.setItem(STORAGE_PUBLIC, kp.publicKey);
+  localStorage.setItem(STORAGE_PRIVATE, kp.privateKey);
+}
+
 interface KeysState {
   keyPair: (KeyPair & { signature?: string }) | null;
+  deviceId: string;
   serverKey: string | null;
   contactKeys: Record<number, UserKey>;
   isLoading: boolean;
+  bootstrapped: boolean;
   error: string | null;
 }
 
-// Initial state
 const initialState: KeysState = {
-  keyPair: null,
+  keyPair: readPersistedKeyPair(),
+  deviceId: getOrCreateDeviceId(),
   serverKey: null,
   contactKeys: {},
   isLoading: false,
-  error: null
+  bootstrapped: false,
+  error: null,
 };
 
-// Async thunks
 export const generateKeyPair = createAsyncThunk(
   'keys/generateKeyPair',
-  async (keyType: string = 'ecdh', { rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      const keyPair = await KeyService.generateKeyPair(keyType as KeyType);
-      return keyPair;
+      return await KeyService.generateKeyPair();
     } catch (error: any) {
-      return rejectWithValue(error.message || `Failed to generate ${keyType} key pair`);
+      return rejectWithValue(error.message || 'Failed to generate ECDH key pair');
     }
   }
 );
 
 export const publishKey = createAsyncThunk(
   'keys/publishKey',
-  async ({ publicKey, keyType }: { publicKey: string; keyType: string }, { rejectWithValue }) => {
+  async (
+    { publicKey, deviceId }: { publicKey: string; deviceId?: string },
+    { rejectWithValue }
+  ) => {
     try {
-      const response = await KeyService.publishKey(publicKey, keyType as KeyType);
+      const response = await KeyService.publishKey(publicKey, { deviceId });
       if (!response.success || !response.data) {
-        console.error(`Failed to publish ${keyType} key:`, response.error);
-        return rejectWithValue(response.error || `Failed to publish ${keyType} key`);
+        return rejectWithValue(response.error || 'Failed to publish ECDH key');
       }
-      return { ...response.data, keyType };
+      return { ...response.data, keyType: 'ecdh' as const };
     } catch (error: any) {
-      console.error(`Error in publishKey thunk for ${keyType}:`, error);
-      return rejectWithValue(error.message || `Failed to publish ${keyType} key`);
+      return rejectWithValue(error.message || 'Failed to publish ECDH key');
     }
   }
 );
@@ -65,29 +93,36 @@ export const getServerKey = createAsyncThunk(
   }
 );
 
-export const getUserKey = createAsyncThunk(
-  'keys/getUserKey',
-  async (userId: number, { rejectWithValue }) => {
-    try {
-      const response = await KeyService.getUserKey(userId);
-      if (!response.success || !response.data) {
-        return rejectWithValue(response.error || 'Failed to get user key');
-      }
-      return { userId, key: response.data };
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to get user key');
+interface GetUserKeyResult {
+  userId: number;
+  key: UserKey | null;
+}
+
+export const getUserKey = createAsyncThunk<
+  GetUserKeyResult,
+  number,
+  { rejectValue: { userId: number; message: string } }
+>('keys/getUserKey', async (userId, { rejectWithValue }) => {
+  try {
+    const response = await KeyService.getUserKey(userId);
+    if (!response.success) {
+      return rejectWithValue({ userId, message: response.error || 'Failed to get user key' });
     }
+    return { userId, key: response.data ?? null };
+  } catch (error: any) {
+    return rejectWithValue({ userId, message: error?.message || 'Failed to get user key' });
   }
-);
+});
 
 export const verifyKeySignature = createAsyncThunk(
   'keys/verifyKeySignature',
-  async ({ userKey, serverPublicKey }: { userKey: UserKey; serverPublicKey: string }, { rejectWithValue }) => {
+  async (
+    { userKey, serverPublicKey }: { userKey: UserKey; serverPublicKey: string },
+    { rejectWithValue }
+  ) => {
     try {
       const isValid = await KeyService.verifyKeySignature(userKey, serverPublicKey);
-      if (!isValid) {
-        return rejectWithValue('Invalid key signature');
-      }
+      if (!isValid) return rejectWithValue('Invalid key signature');
       return { userKey, isValid };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to verify key signature');
@@ -95,13 +130,49 @@ export const verifyKeySignature = createAsyncThunk(
   }
 );
 
-// Keys slice
+/**
+ * Idempotent bootstrap. Generates a local ECDH key pair if missing, publishes
+ * the public half, and fetches the server's public key. Safe to call on every
+ * App mount while authenticated.
+ */
+export const ensureLocalKeysBootstrapped = createAsyncThunk<
+  void,
+  void,
+  { state: { keys: KeysState } }
+>('keys/ensureBootstrapped', async (_arg, { dispatch, getState }) => {
+  const { keyPair, deviceId, bootstrapped } = getState().keys;
+  if (bootstrapped && keyPair) return;
+  let pair: KeyPair | null = keyPair;
+  if (!pair) {
+    const result = await dispatch(generateKeyPair());
+    if (generateKeyPair.rejected.match(result)) {
+      throw new Error('Failed to generate ECDH key pair');
+    }
+    pair = result.payload as KeyPair;
+    persistKeyPair(pair);
+  }
+  const pubResult = await dispatch(
+    publishKey({ publicKey: pair.publicKey, deviceId })
+  );
+  if (publishKey.rejected.match(pubResult)) {
+    throw new Error('Failed to publish ECDH public key');
+  }
+  dispatch(getServerKey());
+});
+
+const EMPTY_USER_KEY: Pick<UserKey, 'publicKey' | 'signature' | 'keyType'> = {
+  publicKey: '',
+  signature: '',
+  keyType: 'ecdh',
+};
+
 const keysSlice = createSlice({
   name: 'keys',
   initialState,
   reducers: {
     setKeyPair: (state, action: PayloadAction<KeyPair>) => {
       state.keyPair = action.payload;
+      persistKeyPair(action.payload);
     },
     markKeyAsVerified: (state, action: PayloadAction<number>) => {
       const contactId = action.payload;
@@ -111,56 +182,28 @@ const keysSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
-    }
+    },
   },
   extraReducers: (builder) => {
-    // Generate Key Pair
-    builder.addCase(generateKeyPair.pending, (state) => {
-      state.isLoading = true;
-      state.error = null;
-    });
     builder.addCase(generateKeyPair.fulfilled, (state, action) => {
-      state.isLoading = false;
-      state.keyPair = action.payload;
+      const pair = action.payload as KeyPair;
+      state.keyPair = pair;
+      persistKeyPair(pair);
     });
-    builder.addCase(generateKeyPair.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
-    });
-    
-    // Publish Key
-    builder.addCase(publishKey.pending, (state) => {
-      state.isLoading = true;
-      state.error = null;
-    });
+
     builder.addCase(publishKey.fulfilled, (state, action) => {
-      state.isLoading = false;
-      // If we have a key pair, update it with the signed key
-      if (state.keyPair) {
-        state.keyPair.publicKey = action.payload.publicKey;
-        state.keyPair.signature = action.payload.signature;
+      const payload = action.payload as UserKey & { keyType: KeyType };
+      const candidate = payload as unknown as { signature?: string; signedKey?: string };
+      const sig = candidate.signature ?? candidate.signedKey ?? '';
+      if (state.keyPair && state.keyPair.publicKey === payload.publicKey) {
+        state.keyPair = { ...state.keyPair, signature: sig };
       }
     });
-    builder.addCase(publishKey.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
-    });
-    
-    // Get Server Key
-    builder.addCase(getServerKey.pending, (state) => {
-      state.isLoading = true;
-      state.error = null;
-    });
+
     builder.addCase(getServerKey.fulfilled, (state, action) => {
-      state.isLoading = false;
-      state.serverKey = action.payload;
+      state.serverKey = action.payload as string;
     });
-    builder.addCase(getServerKey.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
-    });
-    
-    // Get User Key
+
     builder.addCase(getUserKey.pending, (state) => {
       state.isLoading = true;
       state.error = null;
@@ -168,27 +211,32 @@ const keysSlice = createSlice({
     builder.addCase(getUserKey.fulfilled, (state, action) => {
       state.isLoading = false;
       const { userId, key } = action.payload;
-      state.contactKeys[userId] = key;
+      if (key) {
+        state.contactKeys[userId] = key;
+      } else {
+        state.contactKeys[userId] = { userId, ...EMPTY_USER_KEY };
+      }
     });
     builder.addCase(getUserKey.rejected, (state, action) => {
       state.isLoading = false;
-      state.error = action.payload as string;
+      const payload = action.payload as { userId: number; message: string } | undefined;
+      if (payload && payload.userId !== undefined) {
+        state.contactKeys[payload.userId] = { userId: payload.userId, ...EMPTY_USER_KEY };
+      } else {
+        state.error =
+          typeof action.payload === 'string'
+            ? (action.payload as string)
+            : 'Failed to get user key';
+      }
     });
-    
-    // Verify Key Signature
-    builder.addCase(verifyKeySignature.pending, (state) => {
-      state.isLoading = true;
-      state.error = null;
+
+    builder.addCase(ensureLocalKeysBootstrapped.fulfilled, (state) => {
+      state.bootstrapped = true;
     });
-    builder.addCase(verifyKeySignature.fulfilled, (state, action) => {
-      state.isLoading = false;
-      // Key is already verified, nothing to update
+    builder.addCase(ensureLocalKeysBootstrapped.rejected, (state, action) => {
+      state.error = action.error.message || 'Key bootstrap failed';
     });
-    builder.addCase(verifyKeySignature.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
-    });
-  }
+  },
 });
 
 export const { setKeyPair, markKeyAsVerified, clearError } = keysSlice.actions;

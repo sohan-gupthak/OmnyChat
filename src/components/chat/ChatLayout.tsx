@@ -26,36 +26,20 @@ const ChatLayout: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
   
+  // One-time bootstrap of WebSocket + initial data fetches. Re-runs only if
+  // the auth token changes (login/logout); key bootstrap lives in App.tsx and
+  // is keyed by isAuthenticated.
   useEffect(() => {
-    if (token) {
-      // Connect to WebSocket server
-      websocketService.connect(token);
-      
-      // Fetch user profile
-      dispatch(getProfile());
-      
-      // Fetch contacts
-      dispatch(fetchContacts());
-      
-      // Fetch offline messages
-      dispatch(fetchOfflineMessages());
-      
-      // Generate key pair if not exists
-      if (!keyPair) {
-        dispatch(generateKeyPair('ecdh'));
-      }
-      
-      // Get server public key
-      dispatch(getServerKey());
-    }
-    
-    // Cleanup on unmount
+    if (!token) return;
+    websocketService.connect(token);
+    dispatch(getProfile());
+    dispatch(fetchContacts());
+    dispatch(fetchOfflineMessages());
+    dispatch(getServerKey());
     return () => {
-      if (websocketService.isConnected()) {
-        websocketService.disconnect();
-      }
+      if (websocketService.isConnected()) websocketService.disconnect();
     };
-  }, [dispatch, token, keyPair]);
+  }, [dispatch, token]);
   
   // Select the first contact by default if no contact is selected
   useEffect(() => {

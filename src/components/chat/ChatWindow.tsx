@@ -26,22 +26,23 @@ const ChatWindow: React.FC = () => {
   const sharedKey = conversation?.sharedKey;
   
   // Fetch contact's public key, conversation history, and reset unread count
+  // Fetch conversation history + reset unread count when the selected contact changes.
   useEffect(() => {
-    if (selectedContact && selectedContact.contactId) {
-      // Fetch key if not available
-      if (!contactKeys[selectedContact.contactId]) {
-        dispatch(getUserKey(selectedContact.contactId));
-      }
-      
-      dispatch(fetchConversationHistory(selectedContact.contactId));
-      
-      // Reset unread count when contact is selected
-      dispatch(updateUnreadCount({
-        contactId: selectedContact.contactId,
-        increment: false
-      }));
+    const contactId = selectedContact?.contactId;
+    if (!contactId) return;
+    dispatch(fetchConversationHistory(contactId));
+    dispatch(updateUnreadCount({ contactId, increment: false }));
+  }, [dispatch, selectedContact?.contactId]);
+
+  // Kick off the contact's public key fetch once per contact change. The slice
+  // stores a sentinel (empty publicKey) on 404 so subsequent re-renders skip.
+  useEffect(() => {
+    const contactId = selectedContact?.contactId;
+    if (!contactId) return;
+    if (!contactKeys[contactId]) {
+      dispatch(getUserKey(contactId));
     }
-  }, [dispatch, selectedContact, contactKeys]);
+  }, [dispatch, selectedContact?.contactId]);
   
   // Derive shared key when both keys are available
   useEffect(() => {
@@ -62,9 +63,10 @@ const ChatWindow: React.FC = () => {
           
           // Ensure we have the contact's key
           if (!contactKeys[selectedContact.contactId]?.publicKey) {
-            console.log('Contact key not found, fetching...');
-            await dispatch(getUserKey(selectedContact.contactId)).unwrap();
-            return; // The next useEffect cycle will handle key derivation
+            // Empty string in the slice marks a 404 (contact has no key yet).
+            if (contactKeys[selectedContact.contactId]?.publicKey === '') return;
+            await dispatch(getUserKey(selectedContact.contactId));
+            return;
           }
           
           // Skip if we already have a shared key
@@ -93,7 +95,7 @@ const ChatWindow: React.FC = () => {
     };
     
     deriveSharedKey();
-  }, [dispatch, selectedContact, keyPair, contactKeys, sharedKey]);
+  }, [dispatch, selectedContact, keyPair, contactKeys[selectedContact?.contactId ?? -1], sharedKey]);
   
   if (!selectedContact) {
     return (

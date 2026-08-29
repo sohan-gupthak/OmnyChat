@@ -34,8 +34,7 @@ export interface RegisterCredentials {
 }
 
 // Keys -----------------------------------------------------------------------
-export type KeyType = 'ecdh' | 'ed25519';
-export type KeyAlgorithm = 'ecdh' | 'ed25519' | 'rsa';
+export type KeyType = 'ecdh';
 
 export interface KeyPair {
   publicKey: string;
