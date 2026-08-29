@@ -1,20 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
-import rootReducer from '../store/rootReducer';
+import rootReducer from './rootReducer';
+import { keyInitializerMiddleware } from '../middleware/keyInitializer';
 
 export const store = configureStore({
 	reducer: rootReducer,
-});
-
-import { keyInitializerMiddleware } from '../middleware/keyInitializer';
-
-const storeWithMiddleware = configureStore({
-	reducer: rootReducer,
-	middleware: (getDefaultMiddleware) => 
+	middleware: (getDefaultMiddleware) =>
 		getDefaultMiddleware().concat(keyInitializerMiddleware),
 });
-
-Object.assign(store, storeWithMiddleware);
 
 export type AppDispatch = typeof store.dispatch;
 export type RootState = ReturnType<typeof store.getState>;
