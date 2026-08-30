@@ -1,116 +1,123 @@
 import { Link } from 'react-router-dom';
 import { useAppSelector } from '../store';
-import DecryptedText from '../components/ui/DecryptedText';
-import './HomeNeobrutalism.css';
+import { Icon } from '../components/ui/Icon';
+import './Home.css';
 
 const Home = () => {
-  const { isAuthenticated } = useAppSelector(state => state.auth);
-  
+  const { isAuthenticated } = useAppSelector((s) => s.auth);
+
   return (
-    <div className="home-container-neobrutalism">
-      <div className="hero-section-neobrutalism">
-        <h1><DecryptedText text="OmnyChat" 
-          animateOn="view" 
-          revealDirection="center" 
-          speed={150}
-          maxIterations={15}
-          characters="ABCD1234!?"
-          className="revealed"
-          parentClassName=""
-          encryptedClassName="encrypted"/></h1>
-        <p className="tagline-neobrutalism"><DecryptedText text="Secure, Real-time, Hybrid Chat Application" 
-          animateOn="view" 
-          revealDirection="center" 
-          speed={200}
-          maxIterations={15}
-          characters="ABCD1234!?"
-          className="revealed"
-          parentClassName=""
-          encryptedClassName="encrypted"/></p>
-        
-        <div className="features-neobrutalism">
-          <div className="feature-item-neobrutalism">
-            <i className="fas fa-lock"></i>
-            <h3><DecryptedText text="End-to-End Encryption" 
-              animateOn="view" 
-              revealDirection="center" 
-              speed={300}
-              maxIterations={15}
-              characters="ABCD1234!?"
-              className="revealed"
-              parentClassName=""
-              encryptedClassName="encrypted"/></h3>
-            <p>Your messages are encrypted and can only be read by you and the recipient</p>
-          </div>
-          
-          <div className="feature-item-neobrutalism">
-            <i className="fas fa-exchange-alt"></i>
-            <h3><DecryptedText text="Hybrid Communication" 
-              animateOn="view" 
-              revealDirection="center" 
-              speed={300}
-              maxIterations={15}
-              characters="ABCD1234!?"
-              className="revealed"
-              parentClassName=""
-              encryptedClassName="encrypted"/></h3>
-            <p>Direct P2P messaging with server fallback for reliability</p>
-          </div>
-          
-          <div className="feature-item-neobrutalism">
-            <i className="fas fa-key"></i>
-            <h3><DecryptedText text="Key Verification" 
-              animateOn="view" 
-              revealDirection="center" 
-              speed={300}
-              maxIterations={15}
-              characters="ABCD1234!?"
-              className="revealed"
-              parentClassName=""
-              encryptedClassName="encrypted"/></h3>
-            <p>Verify contact keys to ensure secure communication</p>
-          </div>
-        </div>
-        
-        <div className="cta-buttons-neobrutalism">
+    <div className="home">
+      <header className="home__nav">
+        <Link to="/" className="home__brand" aria-label="OmnyChat">
+          <span className="home__brand-mark" aria-hidden="true">
+            <Icon name="shield" size={14} strokeWidth={2.25} />
+          </span>
+          OmnyChat
+        </Link>
+        <nav className="home__nav-links" aria-label="Primary">
           {isAuthenticated ? (
-            <Link to="/chat" className="cta-button-neobrutalism primary">Go to Chat</Link>
+            <Link to="/chat" className="om-btn om-btn--primary om-btn--sm">
+              Open chat
+              <Icon name="arrow-right" size={14} />
+            </Link>
           ) : (
             <>
-              <Link to="/login" className="cta-button-neobrutalism primary">Login</Link>
-              <Link to="/register" className="cta-button-neobrutalism secondary">Register</Link>
+              <Link to="/login" className="om-btn om-btn--ghost om-btn--sm">
+                Sign in
+              </Link>
+              <Link to="/register" className="om-btn om-btn--primary om-btn--sm">
+                Get started
+              </Link>
             </>
           )}
+        </nav>
+      </header>
+
+      <section className="home__hero">
+        <div className="home__hero-inner">
+          <span className="home__eyebrow">
+            <span className="dot" aria-hidden="true" />
+            End-to-end encrypted by default
+          </span>
+          <h1 className="home__title">
+            Private conversations, <em>quietly designed.</em>
+          </h1>
+          <p className="home__lede">
+            OmnyChat is a secure messaging app with hybrid delivery — direct peer-to-peer
+            when possible, server-relayed when not. No tracking, no noise, just the
+            conversation.
+          </p>
+          <div className="home__cta">
+            {isAuthenticated ? (
+              <Link to="/chat" className="om-btn om-btn--primary">
+                Continue to chat
+                <Icon name="arrow-right" size={14} />
+              </Link>
+            ) : (
+              <>
+                <Link to="/register" className="om-btn om-btn--primary">
+                  Create an account
+                  <Icon name="arrow-right" size={14} />
+                </Link>
+                <Link to="/login" className="om-btn om-btn--quiet">
+                  I already have one
+                </Link>
+              </>
+            )}
+            <span className="home__cta-meta">Free · Open-source · Zero-knowledge</span>
+          </div>
         </div>
-      </div>
-      
-      <div className="security-info-neobrutalism">
-        <h2>How OmnyChat Keeps Your Messages Secure</h2>
-        <div className="security-features-neobrutalism">
-          <div className="security-feature-neobrutalism">
-            <h4>ECDH Key Exchange</h4>
-            <p>Secure key exchange for establishing encrypted communication</p>
-          </div>
-          
-          <div className="security-feature-neobrutalism">
-            <h4>AES-GCM Encryption</h4>
-            <p>Strong encryption algorithm for message content</p>
-          </div>
-          
-          <div className="security-feature-neobrutalism">
-            <h4>WebRTC Data Channels</h4>
-            <p>Direct peer-to-peer communication when possible</p>
-          </div>
-          
-          <div className="security-feature-neobrutalism">
-            <h4>Server-Signed Keys</h4>
-            <p>Public keys are signed by the server for authenticity</p>
-          </div>
+      </section>
+
+      <section className="home__features" aria-label="Features">
+        <div className="home__features-inner">
+          <article className="home__feature">
+            <span className="home__feature-icon">
+              <Icon name="lock" size={18} />
+            </span>
+            <h3>End-to-end encryption</h3>
+            <p>
+              Messages are encrypted on your device with AES-GCM, using a per-conversation
+              key derived from ECDH. We never see the plaintext.
+            </p>
+          </article>
+          <article className="home__feature">
+            <span className="home__feature-icon">
+              <Icon name="wifi" size={18} />
+            </span>
+            <h3>Hybrid delivery</h3>
+            <p>
+              Direct peer-to-peer over WebRTC when both sides are reachable. Falls back
+              to server-relayed transport without interrupting your chat.
+            </p>
+          </article>
+          <article className="home__feature">
+            <span className="home__feature-icon">
+              <Icon name="shield" size={18} />
+            </span>
+            <h3>Key verification</h3>
+            <p>
+              Compare fingerprints in person or out-of-band to confirm your channel
+              hasn&apos;t been tampered with.
+            </p>
+          </article>
+          <article className="home__feature">
+            <span className="home__feature-icon">
+              <Icon name="user" size={18} />
+            </span>
+            <h3>You stay in control</h3>
+            <p>
+              No phone number required. No address book scraping. Accounts live on
+              your keys, not ours.
+            </p>
+          </article>
         </div>
-      </div>
-      
-      <footer className="home-footer-neobrutalism">
-        <p>© {new Date().getFullYear()} OmnyChat - Secure Messaging</p>
+      </section>
+
+      <footer className="home__footer">
+        <span>© {new Date().getFullYear()} OmnyChat</span>
+        <span>Built for quiet, private conversations.</span>
       </footer>
     </div>
   );

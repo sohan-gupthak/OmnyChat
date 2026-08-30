@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAppDispatch } from '../../store';
 import { sendMessage } from '../../store/slices/messagesSlice';
+import { Icon, Spinner } from '../ui/Icon';
 
 interface MessageInputProps {
   recipientId: number;
@@ -9,67 +10,73 @@ interface MessageInputProps {
 
 const MessageInput: React.FC<MessageInputProps> = ({ recipientId, sharedKey }) => {
   const dispatch = useAppDispatch();
-  const [messageInput, setMessageInput] = useState('');
-  const [isEncrypting, setIsEncrypting] = useState(false);
-  
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !recipientId) return;
-    
+  const [value, setValue] = useState('');
+  const [sending, setSending] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow textarea up to a max
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [value]);
+
+  const send = async () => {
+    const text = value.trim();
+    if (!text || !recipientId) return;
+    setSending(true);
     try {
-      setIsEncrypting(true);
-      
-      // Log the state to help debug
-      console.log('Sending message:', {
-        recipientId,
-        hasSharedKey: !!sharedKey,
-        messageLength: messageInput.length
-      });
-      
-      await dispatch(sendMessage({
-        recipientId,
-        content: messageInput,
-        sharedKey: sharedKey || undefined
-      }));
-      
-      setMessageInput('');
-    } catch (error) {
-      console.error('Error sending message:', error);
+      await dispatch(
+        sendMessage({ recipientId, content: text, sharedKey: sharedKey || undefined }),
+      );
+      setValue('');
+      // reset textarea height
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    } catch (e) {
+      console.error('Error sending message:', e);
     } finally {
-      setIsEncrypting(false);
+      setSending(false);
     }
   };
-  
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void send();
+    }
+  };
+
+  const canSend = value.trim().length > 0 && !sending;
+
   return (
-    <div className="message-input-container">
-      <div className="message-input-wrapper flex items-center">
-        <input
-          type="text"
-          className="input-neobrutalism"
-          placeholder="Type a message..."
-          value={messageInput}
-          onChange={(e) => setMessageInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          disabled={isEncrypting}
+    <div className="composer" role="region" aria-label="Message composer">
+      <div className="composer__inner">
+        <textarea
+          ref={textareaRef}
+          className="composer__textarea"
+          placeholder="Write a message…"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={onKeyDown}
+          rows={1}
+          aria-label="Message"
+          disabled={sending}
         />
-        <button 
-          className="btn-neobrutalism send-button"
-          onClick={handleSendMessage}
-          disabled={isEncrypting || !messageInput.trim()}
-          style={{ transform: isEncrypting ? 'none' : '' }}
+        <button
+          type="button"
+          className={`composer__send ${canSend ? 'composer__send--active' : ''}`}
+          onClick={send}
+          disabled={!canSend}
+          aria-label="Send message"
+          title="Send (Enter)"
         >
-          {isEncrypting ? 
-            <i className="fas fa-spinner fa-spin"></i> : 
-            <i className="fas fa-paper-plane"></i>
-          }
+          {sending ? <Spinner size={16} /> : <Icon name="arrow-up" size={18} />}
         </button>
       </div>
-      
-      {/* {!sharedKey && (
-        <div className="encryption-notice badge-neobrutalism">
-          <i className="fas fa-lock mr-1"></i>
-          <span>Establishing secure connection...</span>
-        </div>
-      )} */}
+      <p className="composer__hint">
+        Press <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
+      </p>
     </div>
   );
 };

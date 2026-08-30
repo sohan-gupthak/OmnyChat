@@ -1,0 +1,284 @@
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import messageService from '../../services/message.service';
+import { cryptoService } from '../../services';
+// Initial state
+const initialState = {
+    conversations: {},
+    isLoading: false,
+    error: null
+};
+// Async thunks
+export const sendMessage = createAsyncThunk('messages/sendMessage', async ({ recipientId, content, sharedKey }, { rejectWithValue }) => {
+    try {
+        const message = await messageService.sendMessage(recipientId, content, sharedKey);
+        return message;
+    }
+    catch (error) {
+        return rejectWithValue(error.message || 'Failed to send message');
+    }
+});
+export const fetchOfflineMessages = createAsyncThunk('messages/fetchOfflineMessages', async (_, { rejectWithValue, getState }) => {
+    try {
+        const response = await messageService.getOfflineMessages();
+        if (!response.success || !response.data || !response.data.messages) {
+            return rejectWithValue(response.error || 'Failed to fetch offline messages');
+        }
+        // Group messages by sender
+        const messagesBySender = {};
+        response.data.messages.forEach((message) => {
+            const formattedMessage = {
+                id: message.id,
+                senderId: message.sender,
+                recipientId: message.recipient ?? parseInt(localStorage.getItem('userId') || '0'),
+                content: message.content,
+                timestamp: message.timestamp,
+                status: 'delivered',
+                isEncrypted: message.isEncrypted !== false,
+                clientMessageId: message.clientMessageId,
+            };
+            if (!messagesBySender[formattedMessage.senderId]) {
+                messagesBySender[formattedMessage.senderId] = [];
+            }
+            messagesBySender[formattedMessage.senderId].push(formattedMessage);
+        });
+        console.log('Processed offline messages by sender:', messagesBySender);
+        return messagesBySender;
+    }
+    catch (error) {
+        return rejectWithValue(error.message || 'Failed to fetch offline messages');
+    }
+});
+export const fetchConversationHistory = createAsyncThunk('messages/fetchConversationHistory', async (contactId, { rejectWithValue, getState }) => {
+    try {
+        const response = await messageService.getConversationHistory(contactId);
+        if (!response.success || !response.data || !response.data.messages) {
+            return rejectWithValue(response.error || 'Failed to fetch conversation history');
+        }
+        const userId = parseInt(localStorage.getItem('userId') || '0');
+        const messages = [];
+        // Convert backend message format to frontend Message format
+        response.data.messages.forEach((message) => {
+            const formattedMessage = {
+                id: message.id,
+                senderId: message.sender,
+                recipientId: message.recipient ?? userId,
+                content: message.content,
+                timestamp: message.timestamp,
+                status: message.isRead ? 'read' : message.isDelivered ? 'delivered' : 'sent',
+                isEncrypted: message.isEncrypted !== false,
+                clientMessageId: message.clientMessageId,
+            };
+            messages.push(formattedMessage);
+        });
+        console.log(`Processed ${messages.length} conversation messages with contact ${contactId}`);
+        return { contactId, messages };
+    }
+    catch (error) {
+        return rejectWithValue(error.message || 'Failed to fetch conversation history');
+    }
+});
+export const decryptMessage = createAsyncThunk('messages/decryptMessage', async ({ message, sharedKey }) => {
+    if (!message.isEncrypted)
+        return { ...message };
+    try {
+        const decryptedContent = await cryptoService.decryptMessage(message.content, sharedKey);
+        return { ...message, content: decryptedContent, isEncrypted: false };
+    }
+    catch {
+        // Decryption failed. Most likely the sender was unable to encrypt
+        // (no shared key yet, plaintext fallback), so the stored content is
+        // already readable. Surface it as plaintext instead of an "Encrypted
+        // message" placeholder.
+        return { ...message, isEncrypted: false };
+    }
+});
+// Messages slice
+const messagesSlice = createSlice({
+    name: 'messages',
+    initialState,
+    reducers: {
+        addMessage: (state, action) => {
+            const message = action.payload;
+            const contactId = message.senderId === parseInt(localStorage.getItem('userId') || '0')
+                ? message.recipientId
+                : message.senderId;
+            // Create conversation if it doesn't exist
+            if (!state.conversations[contactId]) {
+                state.conversations[contactId] = {
+                    contact: {
+                        id: 0, // Will be updated when contact info is fetched
+                        userId: parseInt(localStorage.getItem('userId') || '0'),
+                        contactId,
+                        username: 'Unknown', // Will be updated when contact info is fetched
+                        isOnline: false,
+                        unreadCount: 0
+                    },
+                    messages: []
+                };
+            }
+            // Add message to conversation
+            state.conversations[contactId].messages.push(message);
+            // Sort messages by timestamp
+            state.conversations[contactId].messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        },
+        updateMessageStatus: (state, action) => {
+            const { messageId, status } = action.payload;
+            // Find message in all conversations
+            Object.values(state.conversations).forEach(conversation => {
+                const message = conversation.messages.find(m => m.id === messageId);
+                if (message) {
+                    message.status = status;
+                }
+            });
+        },
+        markMessagesAsRead: (state, action) => {
+            const contactId = action.payload;
+            const currentUserId = parseInt(localStorage.getItem('userId') || '0');
+            // Find conversation with this contact
+            const conversation = state.conversations[contactId];
+            if (conversation) {
+                // Mark all unread messages from this contact as read
+                conversation.messages.forEach(message => {
+                    if (message.senderId === contactId && message.recipientId === currentUserId && message.status !== 'read') {
+                        message.status = 'read';
+                    }
+                });
+                // Reset unread count
+                if (conversation.contact) {
+                    conversation.contact.unreadCount = 0;
+                }
+            }
+        },
+        clearError: (state) => {
+            state.error = null;
+        }
+    },
+    extraReducers: (builder) => {
+        // Send Message
+        builder.addCase(sendMessage.pending, (state) => {
+            state.isLoading = true;
+            state.error = null;
+        });
+        builder.addCase(sendMessage.fulfilled, (state, action) => {
+            state.isLoading = false;
+            const message = action.payload;
+            const contactId = message.recipientId;
+            // Create conversation if it doesn't exist
+            if (!state.conversations[contactId]) {
+                state.conversations[contactId] = {
+                    contact: {
+                        id: 0, // Will be updated when contact info is fetched
+                        userId: parseInt(localStorage.getItem('userId') || '0'),
+                        contactId,
+                        username: 'Unknown', // Will be updated when contact info is fetched
+                        isOnline: false,
+                        unreadCount: 0
+                    },
+                    messages: []
+                };
+            }
+            // Add message to conversation
+            state.conversations[contactId].messages.push(message);
+            // Sort messages by timestamp
+            state.conversations[contactId].messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        });
+        builder.addCase(sendMessage.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload;
+        });
+        // Fetch Offline Messages
+        builder.addCase(fetchOfflineMessages.pending, (state) => {
+            state.isLoading = true;
+            state.error = null;
+        });
+        builder.addCase(fetchOfflineMessages.fulfilled, (state, action) => {
+            state.isLoading = false;
+            const messagesBySender = action.payload;
+            // Add messages to conversations
+            Object.entries(messagesBySender).forEach(([senderId, messages]) => {
+                const contactId = parseInt(senderId);
+                // Create conversation if it doesn't exist
+                if (!state.conversations[contactId]) {
+                    state.conversations[contactId] = {
+                        contact: {
+                            id: 0, // Will be updated when contact info is fetched
+                            userId: parseInt(localStorage.getItem('userId') || '0'),
+                            contactId,
+                            username: 'Unknown', // Will be updated when contact info is fetched
+                            isOnline: false,
+                            unreadCount: messages.length
+                        },
+                        messages: []
+                    };
+                }
+                // Add messages to conversation
+                state.conversations[contactId].messages.push(...messages);
+                // Sort messages by timestamp
+                state.conversations[contactId].messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            });
+        });
+        builder.addCase(fetchOfflineMessages.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload;
+        });
+        // Fetch Conversation History
+        builder.addCase(fetchConversationHistory.pending, (state) => {
+            state.isLoading = true;
+            state.error = null;
+        });
+        builder.addCase(fetchConversationHistory.fulfilled, (state, action) => {
+            state.isLoading = false;
+            const { contactId, messages } = action.payload;
+            // Create conversation if it doesn't exist
+            if (!state.conversations[contactId]) {
+                state.conversations[contactId] = {
+                    contact: {
+                        id: 0, // Will be updated when contact info is fetched
+                        userId: parseInt(localStorage.getItem('userId') || '0'),
+                        contactId,
+                        username: 'Unknown', // Will be updated when contact info is fetched
+                        isOnline: false,
+                        unreadCount: 0
+                    },
+                    messages: []
+                };
+            }
+            // Replace existing messages with conversation history
+            state.conversations[contactId].messages = messages;
+            // Sort messages by timestamp
+            state.conversations[contactId].messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        });
+        builder.addCase(fetchConversationHistory.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload;
+        });
+        // Decrypt Message
+        builder.addCase(decryptMessage.fulfilled, (state, action) => {
+            const decryptedMessage = action.payload;
+            const myId = parseInt(localStorage.getItem('userId') || '0');
+            const contactId = decryptedMessage.senderId === myId
+                ? decryptedMessage.recipientId
+                : decryptedMessage.senderId;
+            const conversation = state.conversations[contactId];
+            if (!conversation)
+                return;
+            // Match by id (preferred), then clientMessageId, then sender+timestamp.
+            let messageIndex = -1;
+            if (decryptedMessage.id !== undefined) {
+                messageIndex = conversation.messages.findIndex((m) => m.id === decryptedMessage.id);
+            }
+            if (messageIndex === -1 && decryptedMessage.clientMessageId) {
+                messageIndex = conversation.messages.findIndex((m) => m.clientMessageId === decryptedMessage.clientMessageId);
+            }
+            if (messageIndex === -1) {
+                messageIndex = conversation.messages.findIndex((m) => m.senderId === decryptedMessage.senderId &&
+                    m.timestamp === decryptedMessage.timestamp);
+            }
+            if (messageIndex !== -1) {
+                conversation.messages[messageIndex] = decryptedMessage;
+            }
+        });
+    }
+});
+export const { addMessage, updateMessageStatus, markMessagesAsRead, clearError } = messagesSlice.actions;
+export default messagesSlice.reducer;

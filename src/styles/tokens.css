@@ -1,0 +1,120 @@
+/* OmnyChat design tokens — minimalist, content-first */
+
+:root {
+  /* Neutrals (cool gray, very subtle) */
+  --color-bg: #ffffff;
+  --color-bg-subtle: #fafafa;
+  --color-bg-elevated: #ffffff;
+  --color-bg-hover: #f4f4f5;
+  --color-bg-active: #ececef;
+
+  /* Surfaces */
+  --surface-sidebar: #fafafa;
+  --surface-chat: #ffffff;
+
+  /* Borders — hairline only */
+  --color-border: #ececef;
+  --color-border-strong: #e4e4e7;
+  --color-border-focus: #6366f1;
+
+  /* Text */
+  --color-text: #18181b;
+  --color-text-muted: #71717a;
+  --color-text-subtle: #a1a1aa;
+  --color-text-inverse: #ffffff;
+
+  /* Accent — single deep indigo */
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-soft: #eef2ff;
+  --color-accent-fg: #ffffff;
+
+  /* Semantic */
+  --color-success: #10b981;
+  --color-success-soft: #ecfdf5;
+  --color-warning: #f59e0b;
+  --color-warning-soft: #fffbeb;
+  --color-danger: #ef4444;
+  --color-danger-soft: #fef2f2;
+
+  /* Encrypted bubble */
+  --bubble-sent-bg: #4f46e5;
+  --bubble-sent-fg: #ffffff;
+  --bubble-received-bg: #f4f4f5;
+  --bubble-received-fg: #18181b;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 32px;
+  --fs-display: 48px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  --lh-tight: 1.25;
+  --lh-snug: 1.4;
+  --lh-normal: 1.55;
+  --lh-relaxed: 1.7;
+
+  /* Spacing scale (4px base) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 56px;
+  --sp-10: 72px;
+
+  /* Radii — small, restrained */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  /* Layout */
+  --sidebar-w: 320px;
+  --sidebar-w-collapsed: 0px;
+  --header-h: 60px;
+  --composer-max-w: 760px;
+  --message-max-w: 720px;
+
+  /* Motion */
+  --t-fast: 120ms;
+  --t-base: 180ms;
+  --t-slow: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Focus */
+  --focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.18);
+}
+
+[data-theme='dark'] {
+  --color-bg: #0b0b0d;
+  --color-bg-subtle: #111114;
+  --color-bg-elevated: #15151a;
+  --color-bg-hover: #1c1c22;
+  --color-bg-active: #26262e;
+  --surface-sidebar: #111114;
+  --surface-chat: #0b0b0d;
+  --color-border: #232329;
+  --color-border-strong: #2c2c34;
+  --color-text: #f4f4f5;
+  --color-text-muted: #a1a1aa;
+  --color-text-subtle: #71717a;
+  --color-accent-soft: #1e1b4b;
+  --bubble-received-bg: #1c1c22;
+  --bubble-received-fg: #f4f4f5;
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAppSelector } from '../../store';
 import { useSharedKey } from '../../store/sharedKeyStore';
-import './Chat.css';
+import { Icon } from '../ui/Icon';
 
 const EncryptionStatus: React.FC = () => {
   const { selectedContact } = useAppSelector((s) => s.contacts);
@@ -9,46 +9,44 @@ const EncryptionStatus: React.FC = () => {
   const sharedKey = useSharedKey(selectedContact?.contactId);
 
   if (!selectedContact) return null;
-
-  const contactKey = contactKeys[selectedContact.contactId];
-  const contactHasNoKey =
-    contactKey !== undefined && contactKey.publicKey === '';
-  const hasLocalKey = !!contactKey && contactKey.publicKey !== '';
+  const ck = contactKeys[selectedContact.contactId];
+  const contactHasNoKey = ck !== undefined && ck.publicKey === '';
+  const hasLocalKey = !!ck && ck.publicKey !== '';
   const hasSharedKey = !!sharedKey;
-  const isKeyVerified = contactKey?.verified || false;
+  const verified = ck?.verified ?? false;
 
-  let label = 'Setting up encryption...';
-  let icon = 'fa-unlock';
-  let title = 'Establishing secure connection';
-  let statusClass = 'not-encrypted';
+  let label: string;
+  let icon: 'lock' | 'eye' | 'shield';
+  let cls: string;
+  let title: string;
 
   if (contactHasNoKey) {
-    label = 'Contact not encrypted';
-    icon = 'fa-user-lock';
+    label = 'No key';
+    icon = 'eye';
+    cls = 'status-pill status-pill--warn';
     title = 'This contact has not published an encryption key yet';
-    statusClass = 'not-encrypted';
   } else if (hasSharedKey) {
-    label = 'Encrypted';
-    icon = 'fa-lock';
-    title = 'Messages are end-to-end encrypted';
-    statusClass = 'encrypted';
+    label = verified ? 'Verified' : 'Encrypted';
+    icon = 'lock';
+    cls = verified ? 'status-pill status-pill--ok' : 'status-pill status-pill--ok';
+    title = verified
+      ? 'End-to-end encrypted · key fingerprint verified'
+      : 'Messages are end-to-end encrypted';
   } else if (hasLocalKey) {
-    label = 'Setting up encryption...';
-    icon = 'fa-unlock';
+    label = 'Setting up…';
+    icon = 'shield';
+    cls = 'status-pill status-pill--warn';
     title = 'Deriving shared key';
-    statusClass = 'not-encrypted';
+  } else {
+    return null;
   }
 
   return (
-    <div className="encryption-status">
-      <div className={`status ${statusClass}`} title={title}>
-        <i className={`fas ${icon}`}></i>
-        <span>{label}</span>
-        {isKeyVerified && (
-          <i className="fas fa-check-circle verified-icon" title="Key verified"></i>
-        )}
-      </div>
-    </div>
+    <span className={cls} title={title} aria-live="polite">
+      <Icon name={icon} size={12} />
+      {label}
+      {verified && <Icon name="check" size={12} strokeWidth={2.5} />}
+    </span>
   );
 };
 
