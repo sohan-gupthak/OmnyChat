@@ -1,3 +1,3 @@
-import Notifications, { notificationSystem } from './Notifications';
-
-export { Notifications, notificationSystem };
+import Notifications from './Notifications';
+export { Notifications };
+export { notificationSystem } from './notificationSystem';

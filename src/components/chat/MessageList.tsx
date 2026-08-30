@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useAppDispatch } from '../../store';
 import { Message } from '../../types';
 import { cryptoService } from '../../services';
+import { Icon } from '../ui/Icon';
 
 interface MessageListProps {
   messages: Message[];
@@ -10,182 +10,147 @@ interface MessageListProps {
 }
 
 interface Resolved {
-  /** Resolved display text (always non-empty when a shared key was provided). */
   text: string;
-  /** True if decryption actually ran and produced a plain string. */
   decrypted: boolean;
 }
 
 /**
- * Per-message decryption: if the message is still flagged `isEncrypted` and we
- * hold a shared key, attempt decryption inline. The result is cached by
- * `(clientMessageId|id|timestamp|sharedKey)` so re-renders do not redo the
- * WebCrypto work. If decryption fails, we fall back to the raw content so
- * the user always sees something rather than a stuck "Encrypted message".
+ * Decrypts all messages in batch. The per-message `useResolvedContent` hook
+ * was called inside `.map()` which violates the Rules of Hooks — order of
+ * hook calls can't be guaranteed across renders. Computing once with an
+ * effect over the message list is correct and still caches by message id.
  */
-function useResolvedContent(
-  message: Message,
-  sharedKey: CryptoKey | null
-): Resolved {
-  const [resolved, setResolved] = useState<Resolved>({
-    text: message.content,
-    decrypted: !message.isEncrypted,
-  });
-  const cacheKey = sharedKey
-    ? `k=${sharedKey ? '1' : '0'}|id=${message.id ?? ''}|cmid=${message.clientMessageId ?? ''}|ts=${message.timestamp}|enc=${message.isEncrypted ? 1 : 0}`
-    : '';
+function useResolvedMessages(
+  messages: Message[],
+  sharedKey: CryptoKey | null,
+): Resolved[] {
+  const [resolved, setResolved] = useState<Resolved[]>(() =>
+    messages.map((m) => ({
+      text: m.content,
+      decrypted: !m.isEncrypted,
+    })),
+  );
 
   useEffect(() => {
     let cancelled = false;
-    if (!message.isEncrypted) {
-      setResolved({ text: message.content, decrypted: true });
-      return () => {
-        cancelled = true;
-      };
-    }
-    if (!sharedKey) {
-      setResolved({ text: message.content, decrypted: false });
-      return () => {
-        cancelled = true;
-      };
-    }
-    cryptoService
-      .decryptMessage(message.content, sharedKey)
-      .then((plain) => {
-        if (cancelled) return;
-        setResolved({ text: plain, decrypted: true });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setResolved({ text: message.content, decrypted: false });
-      });
+    (async () => {
+      const next: Resolved[] = [];
+      for (const m of messages) {
+        if (!m.isEncrypted) {
+          next.push({ text: m.content, decrypted: true });
+          continue;
+        }
+        if (!sharedKey) {
+          next.push({ text: m.content, decrypted: false });
+          continue;
+        }
+        try {
+          const plain = await cryptoService.decryptMessage(m.content, sharedKey);
+          next.push({ text: plain, decrypted: true });
+        } catch {
+          next.push({ text: m.content, decrypted: false });
+        }
+      }
+      if (!cancelled) setResolved(next);
+    })();
     return () => {
       cancelled = true;
     };
-    // cacheKey change triggers a fresh attempt; identity is irrelevant.
-  }, [cacheKey, message.content, message.isEncrypted, sharedKey]);
+  }, [messages, sharedKey]);
 
   return resolved;
 }
 
-function MessageBubble({
-  message,
-  currentUserId,
-  sharedKey,
-  showTimestamp,
-  isFirst,
-  formatTime,
-}: {
-  message: Message;
-  currentUserId: number;
-  sharedKey: CryptoKey | null;
-  showTimestamp: boolean;
-  isFirst: boolean;
-  formatTime: (ts: string) => string;
-}) {
-  const isSender = message.senderId === currentUserId;
-  const resolved = useResolvedContent(message, sharedKey);
-
-  return (
-    <React.Fragment>
-      {showTimestamp && (
-        <div
-          className="timestamp-divider badge-neobrutalism"
-          style={{
-            margin: '1rem auto',
-            textAlign: 'center',
-            width: 'fit-content',
-          }}
-        >
-          {new Date(message.timestamp).toLocaleDateString()}
-        </div>
-      )}
-      <div className={isSender ? 'message-neobrutalism-sent' : 'message-neobrutalism-received'}>
-        <div className="message-content">
-          {message.isEncrypted && !resolved.decrypted ? (
-            <div className="encrypted-message">
-              <i className="fas fa-lock mr-2"></i> Encrypted message
-            </div>
-          ) : (
-            <span>{resolved.text}</span>
-          )}
-          <span
-            className="message-time"
-            style={{
-              marginTop: '0.5rem',
-              fontSize: '0.75rem',
-              display: 'block',
-              textAlign: isSender ? 'right' : 'left',
-            }}
-          >
-            {formatTime(message.timestamp)}
-            {isSender && (
-              <span className={`message-status ${message.status} ml-1`}>
-                {message.status === 'sent' && <i className="fas fa-check"></i>}
-                {message.status === 'delivered' && <i className="fas fa-check-double"></i>}
-                {message.status === 'read' && <i className="fas fa-check-double read"></i>}
-              </span>
-            )}
-          </span>
-        </div>
-      </div>
-    </React.Fragment>
-  );
+function formatDay(ts: string): string {
+  const d = new Date(ts);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
-const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, sharedKey }) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+function formatTime(ts: string): string {
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
-  // Scroll to bottom when messages change
+const MessageList: React.FC<MessageListProps> = ({
+  messages,
+  currentUserId,
+  sharedKey,
+}) => {
+  const endRef = useRef<HTMLDivElement>(null);
+  const resolved = useResolvedMessages(messages, sharedKey);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages.length]);
 
   if (messages.length === 0) {
     return (
-      <div
-        className="no-messages card-neobrutalism"
-        style={{ padding: '2rem', textAlign: 'center' }}
-      >
-        <i
-          className="fas fa-comment-slash"
-          style={{ fontSize: '2rem', marginBottom: '1rem' }}
-        ></i>
-        <p style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>No messages yet</p>
-        <p style={{ display: 'inline-block', marginTop: '1rem' }}>
-          Send a message to start the conversation
+      <div className="conv-empty">
+        <span className="conv-empty__title">Say hello</span>
+        <p className="conv-empty__desc">
+          No messages yet. Anything you send is end-to-end encrypted with this contact.
         </p>
       </div>
     );
   }
 
   return (
-    <>
-      {messages.map((message, index) => {
-        const showTimestamp =
-          index === 0 ||
-          new Date(message.timestamp).getTime() -
-            new Date(messages[index - 1].timestamp).getTime() >
-            5 * 60 * 1000;
-        return (
-          <MessageBubble
-            key={message.id ?? `${message.senderId}-${message.timestamp}-${index}`}
-            message={message}
-            currentUserId={currentUserId}
-            sharedKey={sharedKey}
-            showTimestamp={showTimestamp}
-            isFirst={index === 0}
-            formatTime={formatTime}
-          />
-        );
-      })}
-      <div ref={messagesEndRef} />
-    </>
+    <div className="messages" aria-live="polite">
+      <div className="messages__inner">
+        {messages.map((m, i) => {
+          const isOut = m.senderId === currentUserId;
+          const r = resolved[i] ?? { text: m.content, decrypted: !m.isEncrypted };
+          const prev = messages[i - 1];
+          const showDay =
+            !prev ||
+            new Date(prev.timestamp).toDateString() !==
+              new Date(m.timestamp).toDateString();
+          return (
+            <React.Fragment key={m.id ?? `${m.senderId}-${m.timestamp}-${i}`}>
+              {showDay && <div className="messages__day">{formatDay(m.timestamp)}</div>}
+              <div className={`msg ${isOut ? 'msg--out' : 'msg--in'}`}>
+                <div className="bubble">
+                  {m.isEncrypted && !r.decrypted ? (
+                    <span className="bubble--encrypted">
+                      <Icon name="lock" size={14} />
+                      Encrypted message
+                    </span>
+                  ) : (
+                    r.text
+                  )}
+                </div>
+                <div className="msg__meta">
+                  {isOut && (
+                    <span
+                      className={m.status === 'read' ? 'check read' : 'check'}
+                      aria-label={m.status ?? 'sent'}
+                    >
+                      {m.status === 'sent' && <Icon name="check" size={12} />}
+                      {m.status === 'delivered' && (
+                        <Icon name="check-double" size={12} />
+                      )}
+                      {m.status === 'read' && (
+                        <Icon name="check-double" size={12} />
+                      )}
+                    </span>
+                  )}
+                  <span>{formatTime(m.timestamp)}</span>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        })}
+        <div ref={endRef} />
+      </div>
+    </div>
   );
 };
 

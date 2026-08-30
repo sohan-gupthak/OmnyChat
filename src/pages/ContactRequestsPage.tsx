@@ -2,41 +2,43 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ContactRequests } from '../components/ContactRequests';
 import { useAppDispatch, useAppSelector } from '../store';
-import { fetchPendingRequests, fetchSentRequests } from '../store/slices/contactRequestsSlice';
-import './ContactRequestsPage.css';
+import {
+  fetchPendingRequests,
+  fetchSentRequests,
+} from '../store/slices/contactRequestsSlice';
+import { Icon } from '../components/ui/Icon';
 
 const ContactRequestsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector(state => state.auth);
-  
+  const { user } = useAppSelector((s) => s.auth);
+
   useEffect(() => {
-    // Redirect to login if not authenticated
     if (!user) {
       navigate('/login');
       return;
     }
-    
-    // Fetch contact requests
     dispatch(fetchPendingRequests());
     dispatch(fetchSentRequests());
   }, [user, navigate, dispatch]);
-  
+
   return (
-    <div className="contact-requests-page">
-      <div className="page-header">
-        <button 
-          className="back-button"
+    <div className="req-page">
+      <header className="req-page__head">
+        <button
+          type="button"
+          className="om-icon-btn"
           onClick={() => navigate('/chat')}
+          aria-label="Back to chat"
+          title="Back to chat"
         >
-          <i className="fas fa-arrow-left"></i> Back to Chat
+          <Icon name="arrow-left" size={16} />
         </button>
-        <h1>Contact Requests</h1>
-      </div>
-      
-      <div className="page-content">
+        <h1 className="req-page__title">Contact requests</h1>
+      </header>
+      <main className="req-page__body">
         <ContactRequests />
-      </div>
+      </main>
     </div>
   );
 };

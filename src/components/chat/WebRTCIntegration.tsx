@@ -48,7 +48,7 @@ const WebRTCIntegration: React.FC = () => {
         // Show notification
         const contact = contacts.find(c => c.contactId === senderId);
         const senderName = contact?.username || `User ${senderId}`;
-        notificationSystem.addNotification('info', `New message from ${senderName}`);
+        notificationSystem.add('info', `New message from ${senderName}`);
       }
       
       // Send delivery receipt
@@ -142,7 +142,7 @@ const WebRTCIntegration: React.FC = () => {
           .catch((err) => console.error('presence send failed', err));
       } catch (error) {
         console.error('Failed to setup WebRTC connection', error);
-        notificationSystem.addNotification(
+        notificationSystem.add(
           'warning',
           `Could not establish a direct connection with ${selectedContact.username}. Falling back to the server.`
         );

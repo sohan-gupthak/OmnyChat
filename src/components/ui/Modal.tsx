@@ -1,88 +1,52 @@
 import React, { useEffect } from 'react';
+import { Icon } from './Icon';
+import '../chat/chat.css';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
+  title?: string;
   children: React.ReactNode;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-    
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
     };
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    
-    window.addEventListener('keydown', handleEsc);
-    
-    return () => {
-      window.removeEventListener('keydown', handleEsc);
-    };
-  }, [onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="modal-overlay"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}
+      role="dialog"
+      aria-modal="true"
       onClick={onClose}
     >
-      <div 
-        className="modal-content"
-        style={{
-          position: 'relative',
-          maxWidth: '600px',
-          width: '100%',
-          maxHeight: '90vh',
-          overflow: 'visible',
-          margin: '0 auto',
-          backgroundColor: 'transparent'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          className="btn-neobrutalism"
-          style={{
-            position: 'absolute',
-            top: '0.5rem',
-            right: '0.5rem',
-            width: '2rem',
-            height: '2rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0',
-            zIndex: 1001
-          }}
-          onClick={onClose}
-        >
-          <i className="fas fa-times"></i>
-        </button>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        {title && (
+          <header className="modal__head">
+            <h3 className="modal__title">{title}</h3>
+            <button
+              type="button"
+              className="om-icon-btn"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              <Icon name="x" size={16} />
+            </button>
+          </header>
+        )}
         {children}
       </div>
     </div>

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { sendContactRequest } from '../../store/slices/contactRequestsSlice';
 import { UserService } from '../../services';
 import { User } from '../../types';
-import './SendContactRequest.css';
-import '../../../src/styles/neobrutalism.css';
+import { Avatar, Icon, Spinner } from '../ui/Icon';
+import '../chat/chat.css';
 
 interface SendContactRequestProps {
   onClose: () => void;
@@ -12,178 +12,134 @@ interface SendContactRequestProps {
 
 const SendContactRequest: React.FC<SendContactRequestProps> = ({ onClose }) => {
   const dispatch = useAppDispatch();
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<User[]>([]);
+  const [selected, setSelected] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const { isLoading } = useAppSelector((state) => state.contactRequests);
-  const { user: currentUser } = useAppSelector((state) => state.auth);
+  const [searching, setSearching] = useState(false);
+  const { isLoading } = useAppSelector((s) => s.contactRequests);
+  const { user: currentUser } = useAppSelector((s) => s.auth);
 
-  // Debounce search to prevent excessive API calls
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
+    if (!query.trim()) {
+      setResults([]);
       return;
     }
-
-    const timer = setTimeout(async () => {
-      setIsSearching(true);
+    const t = setTimeout(async () => {
+      setSearching(true);
       setError(null);
       try {
-        const response = await UserService.searchUsers(searchQuery);
-        if (response.success && response.data) {
-          // Filter out current user from results
-          const filteredResults = response.data.users.filter(
-            user => currentUser && user.id !== currentUser.id
-          );
-          setSearchResults(filteredResults);
+        const res = await UserService.searchUsers(query);
+        if (res.success && res.data) {
+          setResults(res.data.users.filter((u) => currentUser && u.id !== currentUser.id));
         } else {
-          setError('Error searching users');
-          setSearchResults([]);
+          setResults([]);
         }
-      } catch (err) {
-        setError('Failed to search users');
-        setSearchResults([]);
+      } catch {
+        setError('Search failed');
+        setResults([]);
       } finally {
-        setIsSearching(false);
+        setSearching(false);
       }
-    }, 500);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [query, currentUser]);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery, currentUser]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (!selectedUser) {
-      setError('Please select a user from the search results');
+    if (!selected) {
+      setError('Pick someone from the list');
       return;
     }
-
+    setError(null);
     try {
-      await dispatch(sendContactRequest(selectedUser.id)).unwrap();
+      await dispatch(sendContactRequest(selected.id)).unwrap();
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Failed to send contact request');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to send contact request';
+      setError(msg);
     }
-  };
-  
-  const handleSelectUser = (user: User) => {
-    setSelectedUser(user);
-    setSearchResults([]);
   };
 
   return (
-    <div className="card-neobrutalism" style={{ width: '100%' }}>
-      <div className="header-neobrutalism">
-        <h2 style={{ fontWeight: 'bold', fontSize: '1.5rem' }}>Send Contact Request</h2>
-        <p style={{ marginTop: '0.5rem', color: 'var(--color-text-muted)' }}>Search for users to connect with</p>
+    <form className="modal__body" onSubmit={submit} style={{ gap: 'var(--sp-4)' }}>
+      <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text-muted)' }}>
+        Find a user by username or email, then send a contact request.
+      </p>
+
+      <div className="searchbar">
+        <Icon name="search" size={14} />
+        <input
+          autoFocus
+          value={selected ? selected.username : query}
+          onChange={(e) => {
+            setSelected(null);
+            setQuery(e.target.value);
+          }}
+          placeholder="Username or email"
+          aria-label="Search users"
+        />
+        {searching && <Spinner size={14} />}
       </div>
-      
-      <div style={{ padding: '1.5rem' }}>
-        {error && (
-          <div className="badge-neobrutalism" style={{ backgroundColor: 'var(--color-error)', marginBottom: '1rem', padding: '0.75rem', width: '100%', textAlign: 'center' }}>
-            <i className="fas fa-exclamation-circle mr-2"></i>
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label htmlFor="searchQuery" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-              Search by username or email:
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                id="searchQuery"
-                className="input-neobrutalism"
-                value={selectedUser ? `${selectedUser.username} (${selectedUser.email})` : searchQuery}
-                onChange={(e) => {
-                  setSelectedUser(null);
-                  setSearchQuery(e.target.value);
-                }}
-                placeholder="Enter username or email"
-                disabled={isLoading}
-                required
-                style={{ width: '100%' }}
-              />
-              
-              {isSearching && (
-                <div className="badge-neobrutalism" style={{ marginTop: '0.5rem', backgroundColor: 'var(--color-info)' }}>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
-                  Searching...
-                </div>
-              )}
-              
-              {searchResults.length > 0 && !selectedUser && (
-                <div className="search-results" style={{ 
-                  position: 'absolute', 
-                  top: '100%', 
-                  left: 0, 
-                  right: 0, 
-                  zIndex: 10,
-                  marginTop: '0.25rem',
-                  backgroundColor: 'var(--color-background)',
-                  border: '3px solid var(--color-border)',
-                  borderRadius: 'var(--radius-base)',
-                  maxHeight: '250px',
-                  overflowY: 'auto',
-                  overflowX: 'hidden'
-                }}>
-                  {searchResults.map(user => (
-                    <div 
-                      key={user.id} 
-                      onClick={() => handleSelectUser(user)}
-                      style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '2px solid var(--color-border)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        backgroundColor: 'var(--color-background)'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background-alt)'}
-                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background)'}
-                    >
-                      <div className="avatar-neobrutalism" style={{ marginRight: '0.75rem' }}>
-                        {user.username.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 'bold' }}>{user.username}</div>
-                        <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>{user.email}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-            <button 
-              type="button" 
-              className="btn-neobrutalism" 
-              onClick={onClose} 
-              disabled={isLoading}
-              style={{ color: 'var(--color-text)', flex: '1', backgroundColor: 'var(--color-background-alt)' }}
+
+      {error && (
+        <div
+          style={{
+            color: 'var(--color-danger)',
+            background: 'var(--color-danger-soft)',
+            padding: 'var(--sp-3)',
+            borderRadius: 'var(--radius-md)',
+            fontSize: 'var(--fs-sm)',
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {results.length > 0 && !selected && (
+        <div role="listbox" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {results.map((u) => (
+            <button
+              type="button"
+              key={u.id}
+              className="user-row"
+              onClick={() => setSelected(u)}
             >
-              Cancel
+              <Avatar name={u.username} />
+              <div className="user-row__meta">
+                <span className="user-row__name">{u.username}</span>
+                <span className="user-row__sub">{u.email}</span>
+              </div>
             </button>
-            <button 
-              type="submit" 
-              className="btn-neobrutalism" 
-              disabled={isLoading || !selectedUser}
-              style={{ flex: '1' }}
-            >
-              {isLoading ? 'Sending...' : 'Send Request'}
-            </button>
+          ))}
+        </div>
+      )}
+
+      {selected && (
+        <div className="user-row" aria-pressed="true">
+          <Avatar name={selected.username} />
+          <div className="user-row__meta">
+            <span className="user-row__name">{selected.username}</span>
+            <span className="user-row__sub">{selected.email}</span>
           </div>
-        </form>
+          <span className="om-pill om-pill--accent">Selected</span>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--sp-2)' }}>
+        <button type="button" className="om-btn om-btn--quiet" onClick={onClose} disabled={isLoading}>
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="om-btn om-btn--primary"
+          disabled={isLoading || !selected}
+        >
+          {isLoading ? <Spinner size={14} /> : null}
+          {isLoading ? 'Sending…' : 'Send request'}
+        </button>
       </div>
-    </div>
+    </form>
   );
 };
 
