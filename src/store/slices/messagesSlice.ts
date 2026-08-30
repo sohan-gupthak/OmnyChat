@@ -41,7 +41,7 @@ export const fetchOfflineMessages = createAsyncThunk(
       
       // Group messages by sender
       const messagesBySender: Record<number, Message[]> = {};
-      response.data.messages.forEach((message: { id: number; sender: number; recipient?: number; content: string; timestamp: string; clientMessageId?: string }) => {
+      response.data.messages.forEach((message: { id: number; sender: number; recipient?: number; content: string; timestamp: string; isEncrypted?: boolean; clientMessageId?: string }) => {
         const formattedMessage: Message = {
           id: message.id,
           senderId: message.sender,
@@ -49,7 +49,7 @@ export const fetchOfflineMessages = createAsyncThunk(
           content: message.content,
           timestamp: message.timestamp,
           status: 'delivered',
-          isEncrypted: true,
+          isEncrypted: message.isEncrypted !== false,
           clientMessageId: message.clientMessageId,
         };
         
@@ -88,7 +88,7 @@ export const fetchConversationHistory = createAsyncThunk(
           content: message.content,
           timestamp: message.timestamp,
           status: message.isRead ? 'read' : message.isDelivered ? 'delivered' : 'sent',
-          isEncrypted: true,
+          isEncrypted: message.isEncrypted !== false,
           clientMessageId: message.clientMessageId,
         };
         messages.push(formattedMessage);
@@ -183,27 +183,6 @@ const messagesSlice = createSlice({
           conversation.contact.unreadCount = 0;
         }
       }
-    },
-    setSharedKey: (state, action: PayloadAction<{ contactId: number; sharedKey: CryptoKey }>) => {
-      const { contactId, sharedKey } = action.payload;
-      
-      // Create conversation if it doesn't exist
-      if (!state.conversations[contactId]) {
-        state.conversations[contactId] = {
-          contact: {
-            id: 0, // Will be updated when contact info is fetched
-            userId: parseInt(localStorage.getItem('userId') || '0'),
-            contactId,
-            username: 'Unknown', // Will be updated when contact info is fetched
-            isOnline: false,
-            unreadCount: 0
-          },
-          messages: []
-        };
-      }
-      
-      // Set shared key
-      state.conversations[contactId].sharedKey = sharedKey;
     },
     clearError: (state) => {
       state.error = null;
@@ -364,5 +343,5 @@ const messagesSlice = createSlice({
   }
 });
 
-export const { addMessage, updateMessageStatus, markMessagesAsRead, setSharedKey, clearError } = messagesSlice.actions;
+export const { addMessage, updateMessageStatus, markMessagesAsRead, clearError } = messagesSlice.actions;
 export default messagesSlice.reducer;

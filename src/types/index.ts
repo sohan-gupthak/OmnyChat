@@ -88,7 +88,6 @@ export interface Message {
 export interface Conversation {
   contact: Contact;
   messages: Message[];
-  sharedKey?: CryptoKey;
 }
 
 // WebRTC ---------------------------------------------------------------------

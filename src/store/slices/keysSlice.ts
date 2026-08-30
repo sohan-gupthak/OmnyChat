@@ -3,6 +3,14 @@ import { KeyPair, UserKey, KeyType } from '../../types';
 import { KeyService } from '../../services';
 
 const STORAGE_PRIVATE = 'omnychat:ecdhPrivateKey';
+/**
+ * Module-level in-flight tracker for `getUserKey`. Multiple call sites
+ * (ChatWindow, WebRTCIntegration, KeyVerification) all dispatch the thunk
+ * on the same contact open; without this guard, the Network tab shows N
+ * identical requests per open.
+ */
+const inFlightGetUserKey = new Set<number>();
+
 const STORAGE_PUBLIC = 'omnychat:ecdhPublicKey';
 const STORAGE_DEVICE = 'omnychat:deviceId';
 
@@ -78,20 +86,25 @@ export const publishKey = createAsyncThunk(
   }
 );
 
-export const getServerKey = createAsyncThunk(
-  'keys/getServerKey',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await KeyService.getServerKey();
-      if (!response.success || !response.data) {
-        return rejectWithValue(response.error || 'Failed to get server key');
-      }
-      return response.data.publicKey;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to get server key');
+export const getServerKey = createAsyncThunk<
+  string,
+  void,
+  { state: { keys: KeysState } }
+>('keys/getServerKey', async (_, { rejectWithValue }) => {
+  try {
+    const response = await KeyService.getServerKey();
+    if (!response.success || !response.data) {
+      return rejectWithValue(response.error || 'Failed to get server key');
     }
+    return response.data.publicKey;
+  } catch (error: any) {
+    return rejectWithValue(error.message || 'Failed to get server key');
   }
-);
+}, {
+  // Skip when we already have it. App.tsx and ChatLayout both dispatch this
+ // on mount; without the guard, every dispatch fires a real request.
+  condition: (_arg, { getState }) => !getState().keys.serverKey,
+});
 
 interface GetUserKeyResult {
   userId: number;
@@ -101,18 +114,39 @@ interface GetUserKeyResult {
 export const getUserKey = createAsyncThunk<
   GetUserKeyResult,
   number,
-  { rejectValue: { userId: number; message: string } }
->('keys/getUserKey', async (userId, { rejectWithValue }) => {
-  try {
-    const response = await KeyService.getUserKey(userId);
-    if (!response.success) {
-      return rejectWithValue({ userId, message: response.error || 'Failed to get user key' });
+  { state: { keys: KeysState }; rejectValue: { userId: number; message: string } }
+>(
+  'keys/getUserKey',
+  async (userId, { rejectWithValue }) => {
+    inFlightGetUserKey.add(userId);
+    try {
+      const response = await KeyService.getUserKey(userId);
+      if (!response.success) {
+        return rejectWithValue({ userId, message: response.error || 'Failed to get user key' });
+      }
+      return { userId, key: response.data ?? null };
+    } catch (error: any) {
+      return rejectWithValue({ userId, message: error?.message || 'Failed to get user key' });
+    } finally {
+      inFlightGetUserKey.delete(userId);
     }
-    return { userId, key: response.data ?? null };
-  } catch (error: any) {
-    return rejectWithValue({ userId, message: error?.message || 'Failed to get user key' });
+  },
+  {
+    // Coalesce concurrent dispatches and skip when we already resolved.
+    // Contact open fires from multiple sites (ChatWindow, WebRTCIntegration,
+    // KeyVerification) — without this, the Network tab fans out N times.
+    condition: (userId, { getState }) => {
+      if (inFlightGetUserKey.has(userId)) return false;
+      const existing = getState().keys.contactKeys[userId];
+      // Real key already cached, OR explicit empty sentinel from a 404/null
+      // (don't loop; user can retry by other means).
+      if (existing && (existing.publicKey !== '' || existing.userId === userId)) {
+        return false;
+      }
+      return true;
+    },
   }
-});
+);
 
 export const verifyKeySignature = createAsyncThunk(
   'keys/verifyKeySignature',

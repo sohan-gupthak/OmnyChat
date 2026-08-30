@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { getUserKey } from '../../store/slices/keysSlice';
 import { KeyService } from '../../services';
 import { updateUnreadCount } from '../../store/slices/contactsSlice';
-import { setSharedKey, fetchConversationHistory } from '../../store/slices/messagesSlice';
+import { fetchConversationHistory } from '../../store/slices/messagesSlice';
+import { setSharedKey as setSharedKeyMap, useSharedKey } from '../../store/sharedKeyStore';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import KeyVerification from './KeyVerification';
@@ -14,18 +15,22 @@ import './Chat.css';
 const ChatWindow: React.FC = () => {
   const dispatch = useAppDispatch();
   const [showKeyVerification, setShowKeyVerification] = useState(false);
-  
+
   const { user } = useAppSelector(state => state.auth);
   const { selectedContact } = useAppSelector(state => state.contacts);
   const { conversations } = useAppSelector(state => state.messages);
   const { keyPair, contactKeys } = useAppSelector(state => state.keys);
-  
+
   const currentUserId = user?.id || 0;
   const conversation = selectedContact ? conversations[selectedContact.contactId] : undefined;
   const messages = conversation?.messages || [];
-  const sharedKey = conversation?.sharedKey;
+  // Shared key lives outside Redux (CryptoKey is non-serializable).
+  const sharedKey = useSharedKey(selectedContact?.contactId);
   
-  // Fetch contact's public key, conversation history, and reset unread count
+  // Track per-contact derivation attempts so re-renders that don't actually
+  // change the inputs (e.g. a new messages array) don't re-run ECDH.
+  const derivedFor = useRef<Map<number, string>>(new Map());
+
   // Fetch conversation history + reset unread count when the selected contact changes.
   useEffect(() => {
     const contactId = selectedContact?.contactId;
@@ -43,59 +48,43 @@ const ChatWindow: React.FC = () => {
       dispatch(getUserKey(contactId));
     }
   }, [dispatch, selectedContact?.contactId]);
-  
-  // Derive shared key when both keys are available
+
+  // Derive shared key when both keys are available.
   useEffect(() => {
-    const deriveSharedKey = async () => {
-      if (
-        selectedContact && 
-        selectedContact.contactId && 
-        keyPair?.privateKey
-      ) {
-        try {
-          // Log the state to help debug
-          console.log('Attempting to derive shared key:', { 
-            selectedContactId: selectedContact.contactId,
-            hasPrivateKey: !!keyPair?.privateKey,
-            hasContactKey: !!contactKeys[selectedContact.contactId]?.publicKey,
-            hasSharedKey: !!sharedKey
-          });
-          
-          // Ensure we have the contact's key
-          if (!contactKeys[selectedContact.contactId]?.publicKey) {
-            // Empty string in the slice marks a 404 (contact has no key yet).
-            if (contactKeys[selectedContact.contactId]?.publicKey === '') return;
-            await dispatch(getUserKey(selectedContact.contactId));
-            return;
-          }
-          
-          // Skip if we already have a shared key
-          if (sharedKey) {
-            console.log('Shared key already exists');
-            return;
-          }
-          
-          console.log('Deriving shared key...');
-          const derivedKey = await KeyService.deriveSharedKey(
-            keyPair.privateKey,
-            contactKeys[selectedContact.contactId].publicKey
-          );
-          
-          console.log('Shared key derived successfully');
-          
-          // Store the shared key in the conversation
-          dispatch(setSharedKey({
-            contactId: selectedContact.contactId,
-            sharedKey: derivedKey
-          }));
-        } catch (error) {
-          console.error('Error deriving shared key:', error);
-        }
+    const contactId = selectedContact?.contactId;
+    if (!contactId || !keyPair?.privateKey) return;
+
+    const contactKey = contactKeys[contactId];
+    if (sharedKey) return; // already derived in this Map lifetime
+    if (!contactKey) {
+      dispatch(getUserKey(contactId));
+      return;
+    }
+    if (!contactKey.publicKey) return; // 404 / null
+
+    // Skip if we already attempted for this exact (privateKey, publicKey) pair.
+    const attemptKey = `${keyPair.privateKey}::${contactKey.publicKey}`;
+    if (derivedFor.current.get(contactId) === attemptKey) return;
+    derivedFor.current.set(contactId, attemptKey);
+
+    // Fire-and-forget: the sharedKeyStore Map is keyed by contactId, so
+    // writing it is safe even if a newer effect run supersedes this one.
+    // `derivedFor` guards against redoing the (expensive) ECDH work for
+    // the same key pair. No cancellation: a re-run's cleanup previously
+    // raced the write and dropped it, which is the bug that left every
+    // shared key unset.
+    void (async () => {
+      try {
+        const derivedKey = await KeyService.deriveSharedKey(
+          keyPair.privateKey,
+          contactKey.publicKey
+        );
+        setSharedKeyMap(contactId, derivedKey);
+      } catch (error) {
+        console.error('Error deriving shared key:', error);
       }
-    };
-    
-    deriveSharedKey();
-  }, [dispatch, selectedContact, keyPair, contactKeys[selectedContact?.contactId ?? -1], sharedKey]);
+    })();
+  }, [dispatch, selectedContact, keyPair, contactKeys[selectedContact?.contactId ?? -1]]);
   
   if (!selectedContact) {
     return (
